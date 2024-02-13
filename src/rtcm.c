@@ -118,6 +118,11 @@ extern int init_rtcm(rtcm_t *rtcm)
     for (i=0;i<MAXOBS   ;i++) rtcm->obs.data[i]=data0;
     for (i=0;i<MAXSAT*2 ;i++) rtcm->nav.eph [i]=eph0;
     for (i=0;i<MAXPRNGLO;i++) rtcm->nav.geph[i]=geph0;
+    for (i=0;i<NSATGLO  ;i++) {
+        rtcm->nav.geph[i].frq=get_glo_fcn_default(i+1);
+        rtcm->nav.geph[i].sat=satno(SYS_GLO,i+1);
+        rtcm->nav.glo_fcn[i] =get_glo_fcn_default(i+1)+8;
+    }    
     return 1;
 }
 /* free rtcm control ----------------------------------------------------------

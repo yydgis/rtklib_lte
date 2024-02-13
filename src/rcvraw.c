@@ -1357,6 +1357,11 @@ extern int init_raw(raw_t *raw, int format)
     for (i=0;i<MAXSAT   ;i++) raw->nav.alm  [i]=alm0;
     for (i=0;i<NSATGLO  ;i++) raw->nav.geph [i]=geph0;
     for (i=0;i<NSATSBS*2;i++) raw->nav.seph [i]=seph0;
+    for (i=0;i<NSATGLO  ;i++) {
+        raw->nav.geph[i].frq=get_glo_fcn_default(i+1);
+        raw->nav.geph[i].sat=satno(SYS_GLO,i+1);
+        raw->nav.glo_fcn[i] =get_glo_fcn_default(i+1)+8;
+    }    
     raw->sta.name[0]=raw->sta.marker[0]='\0';
     raw->sta.antdes[0]=raw->sta.antsno[0]='\0';
     raw->sta.rectype[0]=raw->sta.recver[0]=raw->sta.recsno[0]='\0';

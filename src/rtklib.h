@@ -38,7 +38,7 @@
 #include <time.h>
 #include <ctype.h>
 #include <stdint.h>
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
 #include <winsock2.h>
 #include <windows.h>
 #else
@@ -59,7 +59,7 @@ extern "C" {
 
 #define VER_RTKLIB  "2.4.3"             /* library version */
 
-#define PATCH_LEVEL "b34"               /* patch level */
+#define PATCH_LEVEL "b35"               /* patch level */
 
 #define COPYRIGHT_RTKLIB \
             "Copyright (C) 2007-2020 T.Takasu\nAll rights reserved."
@@ -181,7 +181,7 @@ extern "C" {
 #endif
 #ifdef ENACMP
 #define MINPRNCMP   1                   /* min satellite sat number of BeiDou */
-#define MAXPRNCMP   63                  /* max satellite sat number of BeiDou */
+#define MAXPRNCMP   65                  /* max satellite sat number of BeiDou */
 #define NSATCMP     (MAXPRNCMP-MINPRNCMP+1) /* number of BeiDou satellites */
 #define NSYSCMP     1
 #else
@@ -510,7 +510,7 @@ extern "C" {
 #define P2_50       8.881784197001252E-16 /* 2^-50 */
 #define P2_55       2.775557561562891E-17 /* 2^-55 */
 
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
 #define thread_t    HANDLE
 #define lock_t      CRITICAL_SECTION
 #define initlock(f) InitializeCriticalSection(f)
@@ -1316,7 +1316,8 @@ EXPORT int  testsnr(int base, int freq, double el, double snr,
                     const snrmask_t *mask);
 EXPORT void setcodepri(int sys, int idx, const char *pri);
 EXPORT int  getcodepri(int sys, uint8_t code, const char *opt);
-
+EXPORT int  get_glo_fcn_default(int prn);
+EXPORT int  set_glo_fcn_default(int prn, int fcn);
 /* matrix and vector functions -----------------------------------------------*/
 EXPORT double *mat  (int n, int m);
 EXPORT int    *imat (int n, int m);

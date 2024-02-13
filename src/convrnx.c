@@ -1230,7 +1230,7 @@ static int convrnx_s(int sess, int format, rnxopt_t *opt, const char *file,
     int i,j,nf,type,n[NOUTFILE+1]={0},mask[MAXEXFILE]={0},staid=-1,abort=0;
     char path[1024],*paths[NOUTFILE],s[NOUTFILE][1024];
     char *epath[MAXEXFILE]={0},*staname=*opt->staid?opt->staid:"0000";
-    
+    gtime_t last_time={0};
     trace(3,"convrnx_s: sess=%d format=%d file=%s ofile=%s %s %s %s %s %s %s "
           "%s %s\n",sess,format,file,ofile[0],ofile[1],ofile[2],ofile[3],
           ofile[4],ofile[5],ofile[6],ofile[7],ofile[8]);
@@ -1306,7 +1306,7 @@ static int convrnx_s(int sess, int format, rnxopt_t *opt, const char *file,
             
             if (opt->ts.time&&timediff(str->time,opt->ts)<-opt->ttol) continue;
             if (opt->te.time&&timediff(str->time,opt->te)>-opt->ttol) break;
-            
+            if (type==1&&str->obs->n>0&&fabs(timediff(str->obs->data[0].time,last_time))<0.001) type=0; /* duplicated epoch */
             /* convert message */
             switch (type) {
                 case  1: convobs(ofp,opt,str,n,tend,&staid); break;
@@ -1318,6 +1318,7 @@ static int convrnx_s(int sess, int format, rnxopt_t *opt, const char *file,
             if (type==1&&!opt->autopos&&norm(opt->apppos,3)<=0.0) {
                 setopt_apppos(str,opt);
             }
+            if (type==1&&str->obs->n>0) last_time=str->obs->data[0].time;
         }
         /* close stream file */
         close_strfile(str);

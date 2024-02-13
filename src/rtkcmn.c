@@ -147,7 +147,8 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <errno.h>
-#ifndef WIN32
+#if defined(_WIN32) || defined(WIN32)
+#else
 #include <dirent.h>
 #include <time.h>
 #include <sys/time.h>
@@ -568,6 +569,18 @@ extern int testsnr(int base, int idx, double el, double snr,
     
     return snr<minsnr;
 }
+/* default glonass frequency table */
+static int default_glo_frq_table[] = { 1,-4,5,6,1,-4,5,6,-2,-7,0,-1,-2,-7,0,-1,4,-3,3,2,4,-3,3,2,-5,-6,-8,-8,-8,-8 };
+#define MAX_GLO_PRN (sizeof(default_glo_frq_table) / sizeof(int))
+extern int get_glo_fcn_default(int prn)
+{
+    return (prn<=MAX_GLO_PRN)?default_glo_frq_table[prn-1]:-8;
+}
+extern int set_glo_fcn_default(int prn, int fcn)
+{
+    if (prn<=MAX_GLO_PRN) default_glo_frq_table[prn-1]=fcn;
+    return get_glo_fcn_default(prn);
+}
 /* obs type string to obs code -------------------------------------------------
 * convert obs code type string to obs code
 * args   : char   *str      I   obs code string ("1C","1P","1Y",...)
@@ -753,7 +766,7 @@ extern double sat2freq(int sat, uint8_t code, const nav_t *nav)
     sys=satsys(sat,&prn);
     
     if (sys==SYS_GLO) {
-        if (!nav) return 0.0;
+        if (!nav) return ((fcn=get_glo_fcn_default(prn))<-7)?0.0:code2freq(sys,code,fcn);
         for (i=0;i<nav->ng;i++) {
             if (nav->geph[i].sat==sat) break;
         }
@@ -763,7 +776,7 @@ extern double sat2freq(int sat, uint8_t code, const nav_t *nav)
         else if (nav->glo_fcn[prn-1]>0) {
             fcn=nav->glo_fcn[prn-1]-8;
         }
-        else return 0.0;
+        else return ((fcn=get_glo_fcn_default(prn))<-7)?0.0:code2freq(sys,code,fcn);
     }
     return code2freq(sys,code,fcn);
 }
@@ -1585,7 +1598,7 @@ extern gtime_t timeget(void)
 {
     gtime_t time;
     double ep[6]={0};
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
     SYSTEMTIME ts;
     
     GetSystemTime(&ts); /* utc */
@@ -1847,7 +1860,7 @@ extern int adjgpsweek(int week)
 *-----------------------------------------------------------------------------*/
 extern uint32_t tickget(void)
 {
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
     return (uint32_t)timeGetTime();
 #else
     struct timespec tp={0};
@@ -1875,7 +1888,7 @@ extern uint32_t tickget(void)
 *-----------------------------------------------------------------------------*/
 extern void sleepms(int ms)
 {
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
     if (ms<5) Sleep(1); else Sleep(ms);
 #else
     struct timespec ts;
@@ -3237,7 +3250,7 @@ extern void traceb  (int level, const uint8_t *p, int n) {}
 *-----------------------------------------------------------------------------*/
 extern int execcmd(const char *cmd)
 {
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
     PROCESS_INFORMATION info;
     STARTUPINFO si={0};
     DWORD stat;
@@ -3272,7 +3285,7 @@ extern int expath(const char *path, char *paths[], int nmax)
 {
     int i,j,n=0;
     char tmp[1024];
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
     WIN32_FIND_DATA file;
     HANDLE h;
     char dir[1024]="",*p;
@@ -3337,7 +3350,7 @@ static int mkdir_r(const char *dir)
 {
     char pdir[1024],*p;
 
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
     HANDLE h;
     WIN32_FIND_DATA data;
     
@@ -3985,7 +3998,7 @@ extern int rtk_uncompress(const char *file, char *uncfile)
         strcpy(uncfile,tmpfile); uncfile[p-tmpfile]='\0';
         strcpy(buff,tmpfile);
         fname=buff;
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
         if ((p=strrchr(buff,'\\'))) {
             *p='\0'; dir=fname; fname=p+1;
         }
