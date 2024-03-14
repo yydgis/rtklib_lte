@@ -336,6 +336,117 @@ static void setmask(const char *argv, rnxopt_t *opt, int mask)
         }
     }
 }
+/* auto search common used data format */
+static int read_rtcm3_file(const char *fname, int *msg_len)
+{
+    FILE *fp=fname?fopen(fname,"rb"):NULL;
+	int total_length=0;
+	int nbyte=0;
+	int nlen=0;
+	int data=0;
+	char buff[1200]={0};
+	*msg_len=0;
+	while (fp&&!feof(fp)&&(data=fgetc(fp))!=EOF)
+	{
+		++total_length;
+		if (nbyte==0)
+		{
+			memset(buff,0,sizeof(buff));
+			if (data!=0xD3) continue;
+		}
+		buff[nbyte++]=data;
+        if (nbyte<6) continue;
+		if (nbyte==6) nlen=getbitu(buff,14,10)+3; /* length without parity */ 
+		if (nbyte<nlen+3) continue;
+		nbyte=0;
+		*msg_len+=nlen+3;
+	}
+	return total_length;
+}
+static int detect_data_format(const char *fname)
+{
+	int ret=-1;
+	int len_msg=0;
+	int len_total=0;
+	if ((len_total=read_rtcm3_file(fname,&len_msg))>0&&len_msg>(0.5*len_total))
+	{
+		ret=STRFMT_RTCM3;
+	}
+	return ret;
+}
+/* get approximate time of rtcm input file -----------------------------------------------*/
+static int get_rtcm_approximate_time_from_eph(const char *fname, gtime_t *time)
+{
+    int ret=0;
+    FILE *fp=fname?fopen(fname,"rb"):NULL;
+	int nbyte=0;
+	int nlen=0;
+	int type=0;
+	int data=0;
+	int week=0;
+	int ncrc=0;
+	double ws=0;
+	char buff[1200]={0};
+	while (fp&&!feof(fp)&&(data=fgetc(fp))!=EOF)
+	{
+		if (nbyte==0)
+		{
+			memset(buff,0,sizeof(buff));
+			if (data!=0xD3) continue;
+		}
+		buff[nbyte++]=data;
+        if (nbyte<6) continue;
+		if (nbyte==6)
+		{
+			nlen=getbitu(buff,14,10)+3; /* length without parity */ 
+			type=getbitu(buff,24,12);
+		}
+		if (nbyte<nlen+3) continue;
+		nbyte=0;
+		/* check parity */
+		if (rtk_crc24q(buff, nlen)!=getbitu(buff,nlen*8,24))
+		{
+			ncrc++;
+			continue;
+		}
+		if (type==1019)
+		{
+			week=getbitu(buff,24+12+6,10);
+			week=week+2048;
+			ws  =getbitu(buff,24+12+276,16)*16.0;
+		}
+		if (type==1041)
+		{
+			week=getbitu(buff,24+12+6,10);
+			week=week+2048;
+			ws  =getbitu(buff,24+12+268,16)*16.0;
+		}
+		if (type==1042)
+		{
+			week=getbitu(buff,24+12+6,13);
+			week=week+1356; /* BDT week to GPS week */
+			ws  =getbitu(buff,24+12+287,13)*8.0;
+		}
+		if (type==1044)
+		{
+			week=getbitu(buff,24+12+434,10);
+			week=week+2048;
+			ws  =getbitu(buff,24+12+234,16)*16.0;
+		}		
+		if (type==1045||type==1046)
+		{
+			week=getbitu(buff,24+12+6,12);
+			week=week+1024; /* gal-week = gst-week + 1024 */
+			ws  =getbitu(buff,24+12+282,14)*60.0;
+		}
+	}
+    if (week>0) {
+        *time=gpst2time(week,ws);
+        ret=1;
+    }
+	if (fp) fclose(fp);
+    return ret;
+}
 /* get start time of input file -----------------------------------------------*/
 static int get_filetime(const char *file, gtime_t *time)
 {
@@ -350,7 +461,7 @@ static int get_filetime(const char *file, gtime_t *time)
     paths[0]=path;
     
     if (!expath(file,paths,1)) return 0;
-    
+    if (get_rtcm_approximate_time_from_eph(path,time)) return 1;
     /* get start time of time-tag file */
     sprintf(path_tag,"%.1019s.tag",path);
     if ((fp=fopen(path_tag,"rb"))) {
@@ -583,6 +694,7 @@ static int cmdopts(int argc, char **argv, rnxopt_t *opt, char **ifile,
         else if (!strcmp(p,".nav"  ))  format=STRFMT_RINEX;
         else if (!strcmp(p+3,"n"   ))  format=STRFMT_RINEX;
         else if (!strcmp(p+3,"N"   ))  format=STRFMT_RINEX;
+        if (format<0) format=detect_data_format(path);
     }
     return format;
 }
