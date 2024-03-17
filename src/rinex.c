@@ -1719,10 +1719,11 @@ extern int init_rnxctr(rnxctr_t *rnx)
     eph_t  eph0={0,-1,-1};
     geph_t geph0={0,-1};
     seph_t seph0={0};
+    sta_t sta0={0};
     int i,j;
     
     trace(3,"init_rnxctr:\n");
-    
+    rnx->sta=sta0;
     rnx->obs.data=NULL;
     rnx->nav.eph =NULL;
     rnx->nav.geph=NULL;
@@ -1738,7 +1739,7 @@ extern int init_rnxctr(rnxctr_t *rnx)
     rnx->time=time0;
     rnx->ver=0.0;
     rnx->sys=rnx->tsys=0;
-    for (i=0;i<6;i++) for (j=0;j<MAXOBSTYPE;j++) rnx->tobs[i][j][0]='\0';
+    for (i=0;i<8;i++) for (j=0;j<MAXOBSTYPE;j++) rnx->tobs[i][j][0]='\0';
     rnx->obs.n=0;
     rnx->nav.n=MAXSAT*2;
     rnx->nav.ng=NSATGLO;
