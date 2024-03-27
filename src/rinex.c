@@ -237,7 +237,7 @@ static int sisa_index(double value)
     else if (value<=0.5) return (int)(value/0.01);
     else if (value<=1.0) return (int)((value-0.5)/0.02)+50;
     else if (value<=2.0) return (int)((value-1.0)/0.04)+75;
-    return ((int)(value-2.0)/0.16)+100;
+    return (int)((value-2.0)/0.16)+100;
 }
 /* initialize station parameter ----------------------------------------------*/
 static void init_sta(sta_t *sta)
