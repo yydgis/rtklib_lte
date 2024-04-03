@@ -385,6 +385,8 @@ static int get_rtcm_approximate_time_from_eph(const char *fname, gtime_t *time)
 	int data=0;
 	int week=0;
 	int ncrc=0;
+	int vers=0;
+	int stype=0;
 	double ws=0;
 	char buff[1200]={0};
 	while (fp&&!feof(fp)&&(data=fgetc(fp))!=EOF)
@@ -408,6 +410,16 @@ static int get_rtcm_approximate_time_from_eph(const char *fname, gtime_t *time)
 		{
 			ncrc++;
 			continue;
+		}
+		if (type==4054)
+		{
+			vers =getbitu(buff,24+12         , 3);
+			stype=getbitu(buff,24+12+ 3      , 9);
+			if (stype==1) {
+			week =getbitu(buff,24+12+ 3+ 9   ,16);
+			ws   =getbitu(buff,24+12+ 3+ 9+16,32)*0.001;
+			break;
+			}
 		}
 		if (type==1019)
 		{
