@@ -419,7 +419,7 @@ static int decode_type1004(rtcm_t *rtcm)
     return sync?0:1;
 }
 /* get signed 38bit field ----------------------------------------------------*/
-static double getbits_38(const uint8_t *buff, int pos)
+extern double getbits_38(const uint8_t *buff, int pos)
 {
     return (double)getbits(buff,pos,32)*64.0+getbitu(buff,pos+32,6);
 }

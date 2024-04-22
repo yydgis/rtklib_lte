@@ -91,7 +91,7 @@ static void setbitg(uint8_t *buff, int pos, int len, int32_t value)
     setbitu(buff,pos+1,len-1,value<0?-value:value);
 }
 /* set signed 38 bit field ---------------------------------------------------*/
-static void set38bits(uint8_t *buff, int pos, double value)
+extern void set38bits(uint8_t *buff, int pos, double value)
 {
     int word_h=(int)floor(value/64.0);
     uint32_t word_l=(uint32_t)(value-word_h*64.0);

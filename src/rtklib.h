@@ -1537,6 +1537,8 @@ EXPORT uint32_t getbitu(const uint8_t *buff, int pos, int len);
 EXPORT int32_t  getbits(const uint8_t *buff, int pos, int len);
 EXPORT void setbitu(uint8_t *buff, int pos, int len, uint32_t data);
 EXPORT void setbits(uint8_t *buff, int pos, int len, int32_t  data);
+EXPORT double getbits_38(const uint8_t *buff, int pos);
+EXPORT void set38bits(uint8_t *buff, int pos, double value);
 EXPORT uint32_t rtk_crc32 (const uint8_t *buff, int len);
 EXPORT uint32_t rtk_crc24q(const uint8_t *buff, int len);
 EXPORT uint16_t rtk_crc16 (const uint8_t *buff, int len);
