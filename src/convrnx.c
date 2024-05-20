@@ -714,6 +714,337 @@ static void resolve_halfc(const strfile_t *str, obsd_t *data, int n)
         data[i].LLI[j]&=~(LLI_HALFA|LLI_HALFS);
     }
 }
+/* scan binary file for 4054_1 time delay message */
+static int scan_4054_1(const char* fname)
+{
+    int ret=0;
+    FILE *fp=fname?fopen(fname,"rb"):NULL;
+	int nbyte=0;
+	int nlen=0;
+	int type=0;
+	int data=0;
+	int week=0;
+	int ncrc=0;
+    int nmsg=0;
+	int vers=0;
+	int stype=0;
+    int staid = 0;
+    int sync = 0;
+    int dow = 0;
+    double tod = 0;
+    double tow = 0;
+    double tow_r = 0;
+	double ws=0;
+	char buff[1200]={0};
+    int maxt = 3600;
+    int numt = 0;
+    double* dts = malloc(sizeof(double) * maxt), *dtemp=NULL; /* time delay vector */
+    gtime_t time_mcu = { 0 };
+    gtime_t time_obs = { 0 };
+    int numofepoch = 0;
+    int numofsync = 0;
+    int numofmisorder = 0;
+    int numofexp = 0;
+    double sample_interval = 0;
+    double dt = 0;
+    int i = 0;
+    int j = 0;
+    int loc68 = 0;
+    int loc95 = 0;
+    char filename[255] = { 0 }, outfilename[255] = { 0 }, *temp = NULL;
+    double ep[6] = { 0 };
+    char des[32] = "", sno[32] = "", rec[32] = "", ver[32] = "", rsn[32] = "";
+    int n=0,m=0,n1=0,n2=0,n3=0,setup=0;
+    /* store the data gap info */
+    int maxg = 50;
+    int numg = 0;
+    int* dgap = malloc(sizeof(int) * maxg);
+    int* igap = malloc(sizeof(int) * maxg);
+    /* start and end time */
+    gtime_t s_time = { 0 };
+    gtime_t e_time = { 0 };
+    int is_new_epoch = 0;
+    /* output file */
+    FILE* fOUT = NULL;
+    if (fname) {
+        strcpy(filename, fname);
+        temp = strrchr(filename, '.');
+        if (temp) temp[0] = '\0';
+        sprintf(outfilename, "%s-time.csv", filename);
+    }
+    /* init time delay vector */
+    if (dts) memset(dts, 0, sizeof(double) * maxt);
+    /* scan rtcm file */
+    while (fp&&!feof(fp)&&(data=fgetc(fp))!=EOF)
+	{
+		if (nbyte==0)
+		{
+			memset(buff,0,sizeof(buff));
+			if (data!=0xD3) continue;
+		}
+		buff[nbyte++]=data;
+        if (nbyte<6) continue;
+		if (nbyte==6)
+		{
+			nlen=getbitu(buff,14,10)+3; /* length without parity */ 
+			type=getbitu(buff,24,12);
+		}
+		if (nbyte<nlen+3) continue;
+        ++nmsg;
+		nbyte=0;
+		/* check parity */
+		if (rtk_crc24q(buff, nlen)!=getbitu(buff,nlen*8,24))
+		{
+			ncrc++;
+			continue;
+		}
+		if (type==4054)
+		{
+			vers =getbitu(buff,24+12         , 3);
+			stype=getbitu(buff,24+12+ 3      , 9);
+			if (stype==1) {
+			    week =getbitu(buff,24+12+ 3+ 9   ,16);
+			    ws   =getbitu(buff,24+12+ 3+ 9+16,32)*0.001;
+                time_mcu = gpst2time(week, ws);
+                time_obs = gpst2time(week, time2gpst(time_obs, NULL));
+                s_time = gpst2time(week, time2gpst(s_time, NULL));
+                e_time = gpst2time(week, time2gpst(e_time, NULL));
+                /* */
+                if (time_obs.time!=0)
+                {
+                    dt = timediff(time_mcu, time_obs);
+                    if (numt >= maxt)
+                    {
+                        maxt += maxt;
+                        if (!(dtemp=(double*)realloc(dts,sizeof(double)*maxt))) {
+                            free(dts); dts=NULL; break;
+                        }
+                        dts=dtemp;
+                    }
+                    dts[numt++]=dt;
+                }
+                time2epoch(time_mcu, ep);
+			}
+		}
+        if (type == 1033)
+        {
+            i=24+12;
+            n =getbitu(buff,i+12,8);
+            m =getbitu(buff,i+28+8*n,8);
+            n1=getbitu(buff,i+36+8*(n+m),8);
+            n2=getbitu(buff,i+44+8*(n+m+n1),8);
+            n3=getbitu(buff,i+52+8*(n+m+n1+n2),8);
+    
+            if (i+60+8*(n+m+n1+n2+n3)<=nlen*8) {
+                staid=getbitu(buff,i,12); i+=12+8;
+                for (j=0;j<n&&j<31;j++) {
+                    des[j]=(char)getbitu(buff,i,8); i+=8;
+                }
+                setup=getbitu(buff,i, 8); i+=8+8;
+                for (j=0;j<m&&j<31;j++) {
+                    sno[j]=(char)getbitu(buff,i,8); i+=8;
+                }
+                i+=8;
+                for (j=0;j<n1&&j<31;j++) {
+                    rec[j]=(char)getbitu(buff,i,8); i+=8;
+                }
+                i+=8;
+                for (j=0;j<n2&&j<31;j++) {
+                    ver[j]=(char)getbitu(buff,i,8); i+=8;
+                }
+                i+=8;
+                for (j=0;j<n3&&j<31;j++) {
+                    rsn[j]=(char)getbitu(buff,i,8); i+=8;
+                }
+            }
+        }
+        /* check epoch time tag */
+        is_new_epoch = 0;
+        /* decode rtcm3 message */
+        if ((type == 1074 || type == 1075 || type == 1076 || type == 1077)|| /* GPS */
+            (type == 1094 || type == 1095 || type == 1096 || type == 1097)|| /* GAL */
+            (type == 1104 || type == 1105 || type == 1106 || type == 1107)|| /* SBS */
+            (type == 1114 || type == 1115 || type == 1116 || type == 1117)|| /* QZS */
+            (type == 1134 || type == 1135 || type == 1136 || type == 1137)   /* IRN */
+            )  
+        {
+            /* GPS, GAL, SBS, QZS,IRN */
+            i = 24+12;
+            staid = getbitu(buff, i, 12);           i += 12;
+            tow_r = getbitu(buff, i, 30) * 0.001;   i += 30;
+            sync  = getbitu(buff, i,  1);           i +=  1;
+            if (!sync) {
+                time_obs = gpst2time(week, tow_r);
+                ++numofepoch;
+                ++numofsync;
+                is_new_epoch = 1;
+            } else if (numofepoch>0&&fabs(tow-tow_r)>0.001) {
+                dt = timediff(gpst2time(week, tow), time_obs);
+                if (fabs(dt)>0.001) {
+                    time_obs = gpst2time(week, tow);
+                    ++numofepoch;
+                    is_new_epoch = 1;
+                }
+            }
+            tow = tow_r;
+        }
+        if (type == 1084 || type == 1085 || type == 1086 || type == 1087)
+        {
+            /* GLO */
+            i = 24+12;
+            staid = getbitu(buff, i, 12);           i += 12;
+		    dow   = getbitu(buff, i,  3);           i +=  3;
+		    tod   = getbitu(buff, i, 27) * 0.001;   i += 27;
+            sync  = getbitu(buff, i,  1);           i +=  1;
+            tow_r = dow * 24 * 3600 + tod - 3 * 3600 + 18;
+            if (tow>0.0&&fabs(tow_r-tow)>(24*1800))
+            {
+                tow_r -= floor((tow_r-tow)/(24*1800))*(24*1800);
+            }
+            tow_r -= floor(tow_r / 604800) * 604800;
+            if (!sync) {
+                time_obs = gpst2time(week, tow_r);
+                ++numofepoch;
+                ++numofsync;
+                is_new_epoch = 1;
+            } else if (numofepoch>0&&fabs(tow-tow_r)>0.001) {
+                dt = timediff(gpst2time(week, tow), time_obs);
+                if (fabs(dt)>0.001) {
+                    time_obs = gpst2time(week, tow);
+                    ++numofepoch;
+                    is_new_epoch = 1;
+                }
+            }
+            tow = tow_r;
+        }
+        if (type == 1124 || type == 1125 || type == 1126 || type == 1127)
+        {
+            /* BDS */
+            i = 24+12;
+            staid = getbitu(buff, i, 12);           i += 12;
+            tow_r = getbitu(buff, i, 30) * 0.001;   i += 30;
+            sync  = getbitu(buff,i, 1);             i +=  1;
+            tow_r+= 14.0; /* BDT -> GPST */
+            tow_r-= floor(tow_r / 604800) * 604800;
+            if (!sync) {
+                time_obs = gpst2time(week, tow_r);
+                ++numofepoch;
+                ++numofsync;
+                is_new_epoch = 1;
+            } else if (numofepoch>0&&fabs(tow-tow_r)>0.001) {
+                dt = timediff(gpst2time(week, tow), time_obs);
+                if (fabs(dt)>0.001) {
+                    time_obs = gpst2time(week, tow);
+                    ++numofepoch;
+                    is_new_epoch = 1;
+                }
+            }
+            tow = tow_r;
+        }
+        /* epoch stats */
+        if (is_new_epoch && numofepoch > 0)
+        {
+            if (numofepoch == 1)
+            {
+                s_time = time_obs;
+            }
+            if (numofepoch > 1)
+            {
+                n = (int)floor(timediff(time_obs, e_time) * 1000.0 + 0.5);
+                for (i = 0; i < numg; ++i)
+                {
+                    if (n == dgap[i])
+                    {
+                        igap[i]++;
+                        break;
+                    }
+                }
+                /* add */
+                if (i == numg)
+                {
+                    if (numg < maxg)
+                    {
+                        dgap[i] = n;
+                        igap[i] = 0;
+                        ++numg;
+                    }
+                    else if (n<dgap[numg-1])
+                    {
+                        dgap[numg - 1] = n;
+                        igap[numg - 1] = 1;
+                    }
+                }
+                /* sort */
+                for (i = 0; i < numg; ++i)
+                {
+                    for (j = 0; j < i; ++j)
+                    {
+                        if (dgap[i] < dgap[j])
+                        {
+                            /* switch */
+                            n = dgap[i];
+                            dgap[i] = dgap[j];
+                            dgap[j] = n;
+
+                            n = igap[i];
+                            igap[i] = igap[j];
+                            igap[j] = n;
+                        }
+                    }
+                }
+                /* done */
+            }
+            e_time = time_obs;
+        }
+	}
+    /* cal sample interval, misorder epoch, expected epoch */
+    for (i = 0; i < numg; ++i)
+    {
+        if (dgap[i] > 0)
+        {
+            sample_interval = dgap[i] * 0.001;
+            numofexp = (int)(floor(timediff(e_time, s_time) / sample_interval + 0.5)) + 1;
+            break;
+        }
+        ++numofmisorder;
+    }
+    if (numofexp < numofepoch) numofexp = numofepoch;
+    /* cal time delay */
+    if (numt>0)
+    {
+        for (i=0;i<numt;++i)
+        {
+            for (j=0;j<i;++j)
+            {
+                if (dts[i]<dts[j])
+                {
+                    /* switch */
+                    dt = dts[i];
+                    dts[i] = dts[j];
+                    dts[j] = dt;
+                }
+            }
+        }
+        loc68 = (int)(numt * 0.68);
+        loc95 = (int)(numt * 0.95);
+        if (loc68 >= numt) loc68 = numt - 1;
+        if (loc95 >= numt) loc95 = numt - 1;
+        temp = strrchr(filename, '-');
+        //printf("%10.4f,%10.4f,%6i,%6i,%6i,%6i,%6i,%7.3f,%7.3f,%6i,%7.3f,%4i,%2i,%2i,%2i,%12s,%s,%s\n", dts[loc68], dts[loc95], numt, numofsync, numofepoch, numofmisorder, numofexp, sample_interval, numofexp > 0 ? numofsync * 100.0 / numofexp : 0, ncrc, nmsg > 0 ? ncrc * 100.0 / nmsg : 0, (int)ep[0], (int)ep[1], (int)ep[2], (int)ep[3], temp ? temp + 1 : filename, rec, ver);
+        fOUT = fopen(outfilename, "w");
+        if (fOUT)
+        {
+            fprintf(fOUT, "time[s] 68%c,time[s] 95%c,number of time delay count, number of sync flag, number of epoch, number of misorder epoch, number of expected epoch, sample interval, data availability, number of crc failure, crc failure rate, year, month, day, hour, station\n", '%', '%');
+            fprintf(fOUT, "%10.4f,%10.4f,%6i,%6i,%6i,%6i,%6i,%7.3f,%7.3f,%6i,%7.3f,%4i,%2i,%2i,%2i,%12s,%s,%s\n", dts[loc68], dts[loc95], numt, numofsync, numofepoch, numofmisorder, numofexp, sample_interval, numofexp > 0 ? numofsync * 100.0 / numofexp : 0, ncrc, nmsg > 0 ? ncrc * 100.0 / nmsg : 0, (int)ep[0], (int)ep[1], (int)ep[2], (int)ep[3], temp ? temp+1 : filename, rec, ver);
+            fclose(fOUT);
+        }
+    }
+    if (dts) free(dts); dts=NULL;
+    if (dgap) free(dgap); dgap = NULL;
+    if (igap) free(igap); igap = NULL;
+	if (fp) fclose(fp);
+    return ret;
+}
 /* scan input files ----------------------------------------------------------*/
 static int scan_file(char **files, int nf, rnxopt_t *opt, strfile_t *str,
                      int *mask)
@@ -729,7 +1060,7 @@ static int scan_file(char **files, int nf, rnxopt_t *opt, strfile_t *str,
     trace(3,"scan_file: nf=%d\n",nf);
     
     for (m=0;m<nf&&!abort;m++) {
-        
+        scan_4054_1(files[m]);
         if (!open_strfile(str,files[m])) {
             continue;
         }
