@@ -1726,6 +1726,8 @@ EXPORT int pppoutstat(rtk_t *rtk, char *buff);
 EXPORT int ppp_ar(rtk_t *rtk, const obsd_t *obs, int n, int *exc,
                   const nav_t *nav, const double *azel, double *x, double *P);
 
+EXPORT int model_phw(gtime_t time, int sat, const char *type, int opt,
+                     const double *rs, const double *rr, double *phw);
 /* post-processing positioning -----------------------------------------------*/
 EXPORT int postpos(gtime_t ts, gtime_t te, double ti, double tu,
                    const prcopt_t *popt, const solopt_t *sopt,

@@ -280,7 +280,7 @@ static int sat_yaw(gtime_t time, int sat, const char *type, int opt,
     return 1;
 }
 /* phase windup model --------------------------------------------------------*/
-static int model_phw(gtime_t time, int sat, const char *type, int opt,
+extern int model_phw(gtime_t time, int sat, const char *type, int opt,
                      const double *rs, const double *rr, double *phw)
 {
     double exs[3],eys[3],ek[3],exr[3],eyr[3],eks[3],ekr[3],E[9];
