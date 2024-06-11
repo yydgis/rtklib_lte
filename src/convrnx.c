@@ -715,7 +715,7 @@ static void resolve_halfc(const strfile_t *str, obsd_t *data, int n)
     }
 }
 /* scan binary file for 4054_1 time delay message */
-static int scan_4054_1(const char* fname)
+static int scan_4054_1(const char* fname,int scan)
 {
     int ret=0;
     FILE *fp=fname?fopen(fname,"rb"):NULL;
@@ -728,7 +728,7 @@ static int scan_4054_1(const char* fname)
     int nmsg=0;
 	int vers=0;
 	int stype=0;
-    int staid = 0;
+    int staid = -1;
     int sync = 0;
     int dow = 0;
     double tod = 0;
@@ -738,6 +738,7 @@ static int scan_4054_1(const char* fname)
 	char buff[1200]={0};
     int maxt = 3600;
     int numt = 0;
+    double xyz[4] = { 0 };
     double* dts = malloc(sizeof(double) * maxt), *dtemp=NULL; /* time delay vector */
     gtime_t time_mcu = { 0 };
     gtime_t time_obs = { 0 };
@@ -745,6 +746,7 @@ static int scan_4054_1(const char* fname)
     int numofsync = 0;
     int numofmisorder = 0;
     int numofexp = 0;
+    int numofbytes = 0;
     double sample_interval = 0;
     double dt = 0;
     int i = 0;
@@ -777,6 +779,7 @@ static int scan_4054_1(const char* fname)
     /* scan rtcm file */
     while (fp&&!feof(fp)&&(data=fgetc(fp))!=EOF)
 	{
+        ++numofbytes;
 		if (nbyte==0)
 		{
 			memset(buff,0,sizeof(buff));
@@ -796,6 +799,7 @@ static int scan_4054_1(const char* fname)
 		if (rtk_crc24q(buff, nlen)!=getbitu(buff,nlen*8,24))
 		{
 			ncrc++;
+            if (scan) printf("crc failure at bytes %i, total %i crc failures\n", numofbytes, ncrc);
 			continue;
 		}
 		if (type==4054)
@@ -941,6 +945,24 @@ static int scan_4054_1(const char* fname)
             }
             tow = tow_r;
         }
+        if (type == 1005 || type == 1006 || type == 1007 || type == 1008)
+        {
+            i = 24 + 12;
+            staid = getbitu(buff, i, 12);
+            if (type == 1005 || type == 1006)
+            {
+                i += 6 + 4;
+                xyz[0] = getbits_38(buff, i) * 0.0001; i += 38 + 2;
+                xyz[1] = getbits_38(buff, i) * 0.0001; i += 38 + 2;
+                xyz[2] = getbits_38(buff, i) * 0.0001;
+            }
+            if (type == 1006)
+            {
+                xyz[3] = getbitu(buff, i, 16) * 0.0001;
+            }
+        }
+        if (scan&&nmsg<2) printf("satid,type,sync,nbyte,x,y,z,nmsg,numofbytes\n");
+        if (scan) printf("%4i,%4i,%i,%4i,%14.4f,%14.4f,%14.4f,%i,%i\n", staid, type, sync, nbyte, xyz[0], xyz[1], xyz[2], nmsg, numofbytes);
         /* epoch stats */
         if (is_new_epoch && numofepoch > 0)
         {
@@ -1060,7 +1082,7 @@ static int scan_file(char **files, int nf, rnxopt_t *opt, strfile_t *str,
     trace(3,"scan_file: nf=%d\n",nf);
     
     for (m=0;m<nf&&!abort;m++) {
-        scan_4054_1(files[m]);
+        scan_4054_1(files[m],opt->option&1<<15);
         if (!open_strfile(str,files[m])) {
             continue;
         }

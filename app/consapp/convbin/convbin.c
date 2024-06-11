@@ -610,6 +610,7 @@ static int cmdopts(int argc, char **argv, rnxopt_t *opt, char **ifile,
         }
         else if (!strcmp(argv[i],"-scan")) {
             /* obsolute */ ;
+            opt->option |= 1 << 15; /* use the 15 BIT for scan rtcm option */
         }
         else if (!strcmp(argv[i],"-halfc")) {
             opt->halfcyc=1;
