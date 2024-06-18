@@ -728,7 +728,7 @@ static int scan_4054_1(const char* fname,int scan)
     int nmsg=0;
 	int vers=0;
 	int stype=0;
-    int staid = -1;
+    int staid =-1;
     int sync = 0;
     int dow = 0;
     double tod = 0;
@@ -753,7 +753,7 @@ static int scan_4054_1(const char* fname,int scan)
     int j = 0;
     int loc68 = 0;
     int loc95 = 0;
-    char filename[255] = { 0 }, outfilename[255] = { 0 }, *temp = NULL;
+    char filename[255] = { 0 }, outfilename[512] = { 0 }, *temp = NULL;
     double ep[6] = { 0 };
     char des[32] = "", sno[32] = "", rec[32] = "", ver[32] = "", rsn[32] = "";
     int n=0,m=0,n1=0,n2=0,n3=0,setup=0;
@@ -1052,7 +1052,7 @@ static int scan_4054_1(const char* fname,int scan)
         if (loc68 >= numt) loc68 = numt - 1;
         if (loc95 >= numt) loc95 = numt - 1;
         temp = strrchr(filename, '-');
-        //printf("%10.4f,%10.4f,%6i,%6i,%6i,%6i,%6i,%7.3f,%7.3f,%6i,%7.3f,%4i,%2i,%2i,%2i,%12s,%s,%s\n", dts[loc68], dts[loc95], numt, numofsync, numofepoch, numofmisorder, numofexp, sample_interval, numofexp > 0 ? numofsync * 100.0 / numofexp : 0, ncrc, nmsg > 0 ? ncrc * 100.0 / nmsg : 0, (int)ep[0], (int)ep[1], (int)ep[2], (int)ep[3], temp ? temp + 1 : filename, rec, ver);
+        /*printf("%10.4f,%10.4f,%6i,%6i,%6i,%6i,%6i,%7.3f,%7.3f,%6i,%7.3f,%4i,%2i,%2i,%2i,%12s,%s,%s\n", dts[loc68], dts[loc95], numt, numofsync, numofepoch, numofmisorder, numofexp, sample_interval, numofexp > 0 ? numofsync * 100.0 / numofexp : 0, ncrc, nmsg > 0 ? ncrc * 100.0 / nmsg : 0, (int)ep[0], (int)ep[1], (int)ep[2], (int)ep[3], temp ? temp + 1 : filename, rec, ver);*/
         fOUT = fopen(outfilename, "w");
         if (fOUT)
         {

@@ -7,11 +7,12 @@ BINDIR = /usr/local/bin
 SRC    = ../../../../src
 
 INCLUDE= -I$(SRC)
-OPTIONS= -DTRACE -DENAGLO -DENAQZS -DENAGAL -DENACMP -DENAIRN -DNFREQ=5 -DNEXOBS=3
+OPTIONS= -DTRACE -DENAGLO -DENAQZS -DENAGAL -DENACMP -DENAIRN -DNFREQ=7 -DNEXOBS=3
 
 CFLAGS = -O3 -ansi -pedantic -Wall -Wno-unused-but-set-variable $(INCLUDE) $(OPTIONS) -g
 
-LDLIBS = -lm -lrt
+#LDLIBS = -lm -lrt
+LDLIBS = -lm
 
 all  : convbin
 
