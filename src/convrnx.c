@@ -1651,7 +1651,36 @@ static int convrnx_s(int sess, int format, rnxopt_t *opt, const char *file,
         
         /* open stream file */
         if (!open_strfile(str,epath[i])) continue;
-        
+#if 0
+     -hc comment  rinex header: comment line
+     -hm marker   rinex header: marker name
+     -hn markno   rinex header: marker number
+     -ht marktype rinex header: marker type
+     -ho observ   rinex header: oberver name and agency separated by /
+     -hr rec      rinex header: receiver number, type and version separated by /
+     -ha ant      rinex header: antenna number and type separated by /
+     -hp pos      rinex header: approx position x/y/z separated by /
+     -hd delta    rinex header: antenna delta h/e/n separated by /
+#endif
+        /* copy rinex header info to opt */
+        if (opt->option & 1 << 0) { /* use command pos */
+        } else {
+            opt->apppos[0] = str->sta->pos[0];
+            opt->apppos[1] = str->sta->pos[1];
+            opt->apppos[2] = str->sta->pos[2];
+        }
+        if (opt->option & 1 << 1) { /* use command antdel */
+        } else {
+            opt->antdel[0] = str->sta->del[0];
+            opt->antdel[1] = str->sta->del[1];
+            opt->antdel[2] = str->sta->del[2];
+        }
+        if (opt->option & 1 << 2) { /* use command -ha ant      rinex header: antenna number and type separated by / */
+        }
+        else {
+            strcpy(opt->ant[0], str->sta->antsno);
+            strcpy(opt->ant[1], str->sta->antdes);
+        }
         /* input message */
         for (j=0;(type=input_strfile(str))>=-1;j++) {
             

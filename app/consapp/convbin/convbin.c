@@ -511,7 +511,7 @@ static int cmdopts(int argc, char **argv, rnxopt_t *opt, char **ifile,
     opt->rnxver=304;
     opt->obstype=OBSTYPE_PR|OBSTYPE_CP;
     opt->navsys=SYS_GPS|SYS_GLO|SYS_GAL|SYS_QZS|SYS_SBS|SYS_CMP|SYS_IRN;
-    
+    opt->option=0;
     for (i=0;i<6;i++) for (j=0;j<64;j++) opt->mask[i][j]='1';
     
     for (i=1;i<argc;i++) {
@@ -577,18 +577,21 @@ static int cmdopts(int argc, char **argv, rnxopt_t *opt, char **ifile,
             for (j=0,p=strtok(buff,"/");j<3&&p;j++,p=strtok(NULL,"/")) {
                 strcpy(opt->ant[j],p);
             }
+            opt->option |= 1 << 2;
         }
         else if (!strcmp(argv[i],"-hp")&&i+1<argc) {
             strcpy(buff,argv[++i]);
             for (j=0,p=strtok(buff,"/");j<3&&p;j++,p=strtok(NULL,"/")) {
                 opt->apppos[j]=atof(p);
             }
+            opt->option |= 1 << 0;
         }
         else if (!strcmp(argv[i],"-hd")&&i+1<argc) {
             strcpy(buff,argv[++i]);
             for (j=0,p=strtok(buff,"/");j<3&&p;j++,p=strtok(NULL,"/")) {
                 opt->antdel[j]=atof(p);
             }
+            opt->option |= 1 << 1;
         }
         else if (!strcmp(argv[i],"-v" )&&i+1<argc) {
             opt->rnxver=(int)(atof(argv[++i])*100.0);
