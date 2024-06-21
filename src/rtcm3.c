@@ -79,6 +79,44 @@ typedef struct {              /* multi-signal-message header type */
     uint8_t cellmask[64];     /* cell mask */
 } msm_h_t;
 
+/* 2W(10), 2X(17) */
+static double  g_2w_2x_dcb[] = { 
+-0.3120, /* G01 */
+99.9999, /*     */
+-0.7070, /* G03 */
+ 0.7140, /* G04 */
+-0.2030, /* G05 */
+-1.1450, /* G06 */
+ 0.4860, /* G07 */
+-1.3310, /* G08 */
+ 0.4700, /* G09 */
+ 1.5220, /* G10 */
+ 0.4360, /* G11 */
+-0.4180, /* G12 */
+99.9999, /*     */
+ 0.3510, /* G14 */
+ 0.3430, /* G15 */
+99.9999, /*     */
+ 0.3090, /* G17 */
+ 0.2790, /* G18 */
+99.9999, /*     */
+99.9999, /*     */
+99.9999, /*     */
+99.9999, /*     */
+ 0.5170, /* G23 */
+ 0.0170, /* G24 */
+-1.1520, /* G25 */
+ 0.7450, /* G26 */
+ 0.1860, /* G27 */
+ 0.4410, /* G28 */
+-0.2030, /* G29 */
+-0.4920, /* G30 */
+-0.3170, /* G31 */
+-0.5340, /* G32 */
+};
+
+#define NSM (CLIGHT*1.0e-9)
+
 /* MSM signal ID table -------------------------------------------------------*/
 const char *msm_sig_gps[32]={
     /* GPS: ref [17] table 3.5-91 */
@@ -1993,7 +2031,7 @@ static void save_msm_obs(rtcm_t *rtcm, int sys, msm_h_t *h, const double *r,
     double tt,freq;
     uint8_t code[32];
     char *msm_type="",*q=NULL;
-    int i,j,k,type,prn,sat,fcn,index=0,idx[32];
+    int i,j,k,type,prn,sat,fcn,index=0,idx[32],ii=0;
     
     type=getbitu(rtcm->buff,24,12);
     
@@ -2091,6 +2129,20 @@ static void save_msm_obs(rtcm_t *rtcm, int sys, msm_h_t *h, const double *r,
                     lossoflock(rtcm,sat,idx[k],lock[j])+(half[j]?3:0);
                 rtcm->obs.data[index].SNR [idx[k]]=(uint16_t)(cnr[j]/SNR_UNIT+0.5);
                 rtcm->obs.data[index].code[idx[k]]=code[k];
+                if (sys==SYS_GPS&&prn>0&&prn<=32) /* 2X -> 2W */
+                {
+                    if (code[k]==18)
+                    {
+                        if (fabs(g_2w_2x_dcb[prn-1]-99.9999)>0.01)
+                        {
+                            ii=code2idx(sys,20);
+                            rtcm->obs.data[index].code[ii]=20;
+                            rtcm->obs.data[index].P[ii]=rtcm->obs.data[index].P[idx[k]]+g_2w_2x_dcb[prn-1]*NSM; /* convert ns to meter */
+                            rtcm->obs.data[index].code[ii]=20;
+                            rtcm->obs.data[index].L[ii]=rtcm->obs.data[index].L[idx[k]];
+                        }
+                    }
+                }
             }
             j++;
         }
