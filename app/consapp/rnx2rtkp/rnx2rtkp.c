@@ -46,6 +46,7 @@ static const char *help[]={
 " -o file   set output file [stdout]",
 " -ts ds ts start day/time (ds=y/m/d ts=h:m:s) [obs start time]",
 " -te de te end day/time   (de=y/m/d te=h:m:s) [obs end time]",
+" -tr y/m/d h:m:s  approximated time for RTCM",
 " -ti tint  time interval (sec) [all]",
 " -p mode   mode (0:single,1:dgps,2:kinematic,3:static,4:moving-base,",
 "                 5:fixed,6:ppp-kinematic,7:ppp-static) [2]",
@@ -97,14 +98,16 @@ int main(int argc, char **argv)
     solopt_t solopt=solopt_default;
     filopt_t filopt={""};
     gtime_t ts={0},te={0};
-    double tint=0.0,es[]={2000,1,1,0,0,0},ee[]={2000,12,31,23,59,59},pos[3];
+    double tint=0.0,es[]={2000,1,1,0,0,0},ee[]={2000,12,31,23,59,59},pos[3]={0};
     int i,j,n,ret;
     char *infile[MAXFILE],*outfile="",*p;
+    double er[]={2000,1,1,0,0,0}; /* approximate time for rtcm data file */
     
     prcopt.mode  =PMODE_KINEMA;
     prcopt.navsys=0;
     prcopt.refpos=1;
     prcopt.glomodear=1;
+    prcopt.nf=3;/* default triple band L1+L2+L5 */
     solopt.timef=0;
     sprintf(solopt.prog ,"%s ver.%s %s",PROGNAME,VER_RTKLIB,PATCH_LEVEL);
     sprintf(filopt.trace,"%s.trace",PROGNAME);
@@ -120,14 +123,19 @@ int main(int argc, char **argv)
     for (i=1,n=0;i<argc;i++) {
         if      (!strcmp(argv[i],"-o")&&i+1<argc) outfile=argv[++i];
         else if (!strcmp(argv[i],"-ts")&&i+2<argc) {
-            sscanf(argv[++i],"%lf/%lf/%lf",es,es+1,es+2);
-            sscanf(argv[++i],"%lf:%lf:%lf",es+3,es+4,es+5);
+            j=sscanf(argv[++i],"%lf/%lf/%lf",es,es+1,es+2);
+            j=sscanf(argv[++i],"%lf:%lf:%lf",es+3,es+4,es+5);
             ts=epoch2time(es);
         }
         else if (!strcmp(argv[i],"-te")&&i+2<argc) {
-            sscanf(argv[++i],"%lf/%lf/%lf",ee,ee+1,ee+2);
-            sscanf(argv[++i],"%lf:%lf:%lf",ee+3,ee+4,ee+5);
+            j=sscanf(argv[++i],"%lf/%lf/%lf",ee,ee+1,ee+2);
+            j=sscanf(argv[++i],"%lf:%lf:%lf",ee+3,ee+4,ee+5);
             te=epoch2time(ee);
+        }
+        else if (!strcmp(argv[i],"-tr")&&i+2<argc) {
+            j=sscanf(argv[++i],"%lf/%lf/%lf",er,er+1,er+2);
+            j=sscanf(argv[++i],"%lf:%lf:%lf",er+3,er+4,er+5);
+            prcopt.tr=epoch2time(er);
         }
         else if (!strcmp(argv[i],"-ti")&&i+1<argc) tint=atof(argv[++i]);
         else if (!strcmp(argv[i],"-k")&&i+1<argc) {++i; continue;}
@@ -178,7 +186,7 @@ int main(int argc, char **argv)
         else if (n<MAXFILE) infile[n++]=argv[i];
     }
     if (!prcopt.navsys) {
-        prcopt.navsys=SYS_GPS|SYS_GLO;
+        prcopt.navsys=SYS_GPS|SYS_GLO|SYS_GAL|SYS_CMP|SYS_QZS; /* default 5 systems */
     }
     if (n<=0) {
         showmsg("error : no input file");

@@ -1616,6 +1616,109 @@ extern int readrnxt(const char *file, int rcv, gtime_t ts, gtime_t te,
     
     return stat;
 }
+
+/* read rtcm file --------------------------------------------*/
+static int readrtcmfile(const char *file, gtime_t ts, gtime_t te, gtime_t tr, double tint,
+                       const char *opt, int flag, int index, char *type,
+                       obs_t *obs, nav_t *nav, sta_t *sta)
+{
+    FILE *fp;
+    int stat=0,data=0,ret=0,i=0,sat=0,sys=0,prn=0,f=0;
+    rtcm_t *rtcm=(rtcm_t*)malloc(sizeof(rtcm_t));
+    eph_t * eph=NULL;
+    geph_t*geph=NULL;
+
+    trace(3,"readrtcmfile: file=%s flag=%d index=%d\n",file,flag,index);
+    
+    if (sta) init_sta(sta);
+    
+    if (!(fp=fopen(file,"rb"))) {
+        trace(2,"rtcm file open error: %s\n",file);
+        return 0;
+    }
+    /* read rtcm file */
+    init_rtcm(rtcm);
+    rtcm->time=rtcm->time_s=tr;
+    while (fp&&!feof(fp)&&(data=fgetc(fp))!=EOF) {
+        ret=input_rtcm3(rtcm,data);
+        if (ret==1) {
+
+            /* screen data by time */
+            if (rtcm->obs.n>0&&!screent(rtcm->obs.data[0].time,ts,te,tint)) continue;
+        
+            for (i=0;i<rtcm->obs.n;i++) {
+                rtcm->obs.data[i].rcv=(uint8_t)index;
+                /* save obs data */
+                if ((stat=addobsdata(obs,rtcm->obs.data+i))<0) break;
+            }
+#if 0
+            for (i=0;i<rtcm->obs.n;++i) {
+                sys=satsys(rtcm->obs.data[i].sat,&prn);
+                printf("%3i,%3i,%3i,%s", rtcm->obs.data[i].rcv, sys, prn, time_str(rtcm->obs.data[i].time, 3));
+                for (f=0;f<NFREQ+NEXOBS;++f) {
+                    if (rtcm->obs.data[i].code[f])
+                        printf(",%s,%14.4f,%14.4f,%3i", code2obs(rtcm->obs.data[i].code[f]), rtcm->obs.data[i].P[f], rtcm->obs.data[i].L[f], rtcm->obs.data[i].SNR[f]);
+                }
+                printf("\n");
+            }
+#endif
+        } else if (ret==2) {
+            if ((sys=satsys((sat=rtcm->ephsat),&prn))==SYS_GLO) { /* GLO EPH */
+                geph=rtcm->nav.geph+(prn-1);
+                stat=add_geph(nav,geph);
+            } else if (sys==SYS_GPS||sys==SYS_CMP||sys==SYS_QZS||sys==SYS_GAL||sys==SYS_IRN) {
+                eph=rtcm->nav.eph+(sat-1+MAXSAT*rtcm->ephset);
+                stat=add_eph(nav,eph);
+            }
+        } else if (ret==5) {
+            if (sta) *sta=rtcm->sta;
+        }
+    }
+
+    fclose(fp);
+    free_rtcm(rtcm);
+    free(rtcm);
+    
+    return stat;
+}
+/* read RTCM files ----------- -----------------------------------------------*/
+extern int readrtcm(const char *file, int rcv, gtime_t ts, gtime_t te, gtime_t tr,
+                    double tint, const char *opt, obs_t *obs, nav_t *nav,
+                    sta_t *sta)
+{
+    int i,n,stat=0;
+    const char *p;
+    char type=' ',*files[MAXEXFILE]={0};
+    
+    trace(3,"readrnxt: file=%s rcv=%d\n",file,rcv);
+    
+    if (!*file) {
+        return 0;/*readrnxfp(stdin,ts,te,tint,opt,0,1,&type,obs,nav,sta);*/
+    }
+    for (i=0;i<MAXEXFILE;i++) {
+        if (!(files[i]=(char *)malloc(1024))) {
+            for (i--;i>=0;i--) free(files[i]);
+            return -1;
+        }
+    }
+    /* expand wild-card */
+    if ((n=expath(file,files,MAXEXFILE))<=0) {
+        for (i=0;i<MAXEXFILE;i++) free(files[i]);
+        return 0;
+    }
+    /* read rinex files */
+    for (i=0;i<n&&stat>=0;i++) {
+        stat=readrtcmfile(files[i],ts,te,tr,tint,opt,0,rcv,&type,obs,nav,sta);
+    }
+    /* if station name empty, set 4-char name from file head */
+    if (sta) {
+        if (!(p=strrchr(file,FILEPATHSEP))) p=file-1;
+        if (!*sta->name) setstr(sta->name,p+1,4);
+    }
+    for (i=0;i<MAXEXFILE;i++) free(files[i]);
+    
+    return stat;
+}
 extern int readrnx(const char *file, int rcv, const char *opt, obs_t *obs,
                    nav_t *nav, sta_t *sta)
 {

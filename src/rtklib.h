@@ -1014,6 +1014,7 @@ typedef struct {        /* processing options type */
     double odisp[2][6*11]; /* ocean tide loading parameters {rov,base} */
     int  freqopt;       /* disable L2-AR */
     char pppopt[256];   /* ppp option */
+    gtime_t tr;         /* approximate time for rtcm */
 } prcopt_t;
 
 typedef struct {        /* solution options type */
@@ -1499,7 +1500,10 @@ EXPORT int  init_rnxctr (rnxctr_t *rnx);
 EXPORT void free_rnxctr (rnxctr_t *rnx);
 EXPORT int  open_rnxctr (rnxctr_t *rnx, FILE *fp);
 EXPORT int  input_rnxctr(rnxctr_t *rnx, FILE *fp);
-
+/* rtcm read functions */
+EXPORT int readrtcm(const char *file, int rcv, gtime_t ts, gtime_t te, gtime_t tr,
+                    double tint, const char *opt, obs_t *obs, nav_t *nav,
+                    sta_t *sta);
 /* ephemeris and clock functions ---------------------------------------------*/
 EXPORT double eph2clk (gtime_t time, const eph_t  *eph);
 EXPORT double geph2clk(gtime_t time, const geph_t *geph);

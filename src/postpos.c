@@ -614,6 +614,7 @@ static int readobsnav(gtime_t ts, gtime_t te, double ti, char **infile,
         }
         /* read rinex obs and nav file */
         if (readrnxt(infile[i],rcv,ts,te,ti,prcopt->rnxopt[rcv<=1?0:1],obs,nav,
+                     rcv<=2?sta+rcv-1:NULL)<0||readrtcm(infile[i],rcv,ts,te,prcopt->tr,ti,prcopt->rnxopt[rcv<=1?0:1],obs,nav,
                      rcv<=2?sta+rcv-1:NULL)<0) {
             checkbrk("error : insufficient memory");
             trace(1,"insufficient memory\n");
