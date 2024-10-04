@@ -514,15 +514,15 @@ extern "C" {
 #define thread_t    HANDLE
 #define lock_t      CRITICAL_SECTION
 #define initlock(f) InitializeCriticalSection(f)
-#define lock(f)     EnterCriticalSection(f)
-#define unlock(f)   LeaveCriticalSection(f)
+#define lock_(f)    EnterCriticalSection(f)
+#define unlock_(f)  LeaveCriticalSection(f)
 #define FILEPATHSEP '\\'
 #else
 #define thread_t    pthread_t
 #define lock_t      pthread_mutex_t
 #define initlock(f) pthread_mutex_init(f,NULL)
-#define lock(f)     pthread_mutex_lock(f)
-#define unlock(f)   pthread_mutex_unlock(f)
+#define lock_(f)    pthread_mutex_lock(f)
+#define unlock_(f)  pthread_mutex_unlock(f)
 #define FILEPATHSEP '/'
 #endif
 

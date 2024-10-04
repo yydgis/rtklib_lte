@@ -3047,17 +3047,17 @@ static void traceswap(void)
     gtime_t time=utc2gpst(timeget());
     char path[1024];
     
-    lock(&lock_trace);
+    lock_(&lock_trace);
     
     if ((int)(time2gpst(time      ,NULL)/INT_SWAP_TRAC)==
         (int)(time2gpst(time_trace,NULL)/INT_SWAP_TRAC)) {
-        unlock(&lock_trace);
+        unlock_(&lock_trace);
         return;
     }
     time_trace=time;
     
     if (!reppath(file_trace,path,time,"","")) {
-        unlock(&lock_trace);
+        unlock_(&lock_trace);
         return;
     }
     if (fp_trace) fclose(fp_trace);
@@ -3065,7 +3065,7 @@ static void traceswap(void)
     if (!(fp_trace=fopen(path,"w"))) {
         fp_trace=stderr;
     }
-    unlock(&lock_trace);
+    unlock_(&lock_trace);
 }
 extern void traceopen(const char *file)
 {
