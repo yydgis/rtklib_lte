@@ -1022,6 +1022,7 @@ typedef struct {        /* processing options type */
     char pppopt[256];   /* ppp option */
     gtime_t tr;         /* approximate time for rtcm */
     char jsonfile[256]; /* json file for base coordinate */
+    char robsfile[256]; /* robs file for external engine */
 } prcopt_t;
 
 typedef struct {        /* solution options type */

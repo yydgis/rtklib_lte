@@ -324,6 +324,64 @@ static void corr_phase_bias_ssr(obsd_t *obs, int n, const nav_t *nav)
         obs[i].L[j]-=nav->ssr[obs[i].sat-1].pbias[code-1]*freq/CLIGHT;
     }
 }
+/* output raw pos data for external RTK engine */
+static void output_raw_pos(gtime_t time, int rcv, double *pos, double *rms, int type, FILE *fout)
+{
+	int wk=0;
+	double ws=time2gpst(time,&wk);
+	if (fout)
+	{
+		fprintf(fout,"$POS,%4i,%11.4f,%3i,%14.4f,%14.4f,%14.4f,%10.4f,%10.4f,%10.4f,%3i\n",wk,ws,rcv,pos[0],pos[1],pos[2],rms[0],rms[1],rms[2],type);
+        fflush(fout);
+	}
+	return;
+}
+/* output raw obs data for external RTK engine */
+static void output_raw_obs(obsd_t *obs, int n, nav_t *nav, prcopt_t *opt, FILE *fout)
+{
+	obsd_t *obsd=obs;
+	int i=0;
+	int j=0;
+	int prn=0;
+	int sys=0;
+	int wk=0;
+	double ws=0;
+	double freq=0;
+	int idx=0;
+	double *rs =NULL;
+	double *dts=NULL;
+	double *var=NULL;
+	int    svh[MAXOBS*2];
+
+	if (n>0 && fout)
+	{
+		rs=mat(6,n); dts=mat(2,n); var=mat(1,n);
+	
+		/* satellite positions/clocks */
+		satposs(obs[0].time,obs,n,nav,opt->sateph,rs,dts,var,svh);
+
+		for (i=0,obsd=obs+i;i<n;++i,++obsd)
+		{
+			ws=time2gpst(obsd->time,&wk);
+			sys=satsys(obsd->sat,&prn);
+			fprintf(fout,"$OBS,%4i,%11.4f,%3i,%3i,%3i,%3i",wk,ws,obsd->rcv,obsd->sat,sys,prn);
+			fprintf(fout,",%16.4f,%16.4f,%16.4f,%14.4f,%14.4f,%14.4f,%14.4f,%10.4f,%7.2f,%3i",rs[0+i*6],rs[1+i*6],rs[2+i*6],rs[3+i*6],rs[4+i*6],rs[5+i*6],dts[0+i*2]*CLIGHT,dts[1+i*2]*CLIGHT,var[i],svh[i]);
+			for (j=0;j<NFREQ+NEXOBS;++j)
+			{
+				if (obsd->code[j]>0)
+				{
+					freq=sat2freq(obsd->sat,obsd->code[j],nav);
+					fprintf(fout,",%3i,%14.4f,%16.4f,%10.4f,%3.1f,%11.0f",obsd->code[j],obsd->P[j],obsd->L[j],obsd->D[j],(obsd->SNR[j]*SNR_UNIT),freq);
+				}
+			}
+			fprintf(fout,"\n");
+		}
+        fflush(fout);
+	    free(rs); free(dts); free(var); 
+
+	}
+	return;
+}
 /* process positioning -------------------------------------------------------*/
 static void procpos(FILE *fp, const prcopt_t *popt, const solopt_t *sopt,
                     int mode)
@@ -334,6 +392,8 @@ static void procpos(FILE *fp, const prcopt_t *popt, const solopt_t *sopt,
     obsd_t obs[MAXOBS*2]; /* for rover and base */
     double rb[3]={0};
     int i,nobs,n,solstatic,pri[]={6,1,2,3,4,5,1,6};
+    FILE *frobs=(strlen(popt->robsfile)>0)?fopen(popt->robsfile,"w"):NULL;
+	double rms[3]={0};
     
     trace(3,"procpos : mode=%d\n",mode);
     
@@ -356,7 +416,20 @@ static void procpos(FILE *fp, const prcopt_t *popt, const solopt_t *sopt,
         if (!strstr(popt->pppopt,"-ENA_FCB")) {
             corr_phase_bias_ssr(obs,n,&navs);
         }
+		/* output raw obs data */
+		output_raw_obs(obs,n,&navs,popt,frobs);
         if (!rtkpos(&rtk,obs,n,&navs)) continue;
+		if (n>0)
+		{
+            /* output raw pos data for base */
+            rms[0]=rms[1]=rms[2]=0;
+            output_raw_pos(obs[0].time,2,rtk.rb,rms,0,frobs);
+            /* output raw pos data for rove */
+            rms[0]=sqrt(rtk.sol.qr[0]);
+			rms[1]=sqrt(rtk.sol.qr[1]);
+			rms[2]=sqrt(rtk.sol.qr[2]);
+			output_raw_pos(obs[0].time,1,rtk.sol.rr,rms,rtk.sol.stat,frobs);
+		}
         
         if (mode==0) { /* forward/backward */
             if (!solstatic) {
@@ -388,6 +461,7 @@ static void procpos(FILE *fp, const prcopt_t *popt, const solopt_t *sopt,
         outsol(fp,&sol,rb,sopt);
     }
     rtkfree(&rtk);
+    if (frobs) fclose(frobs);
 }
 /* validation of combined solutions ------------------------------------------*/
 static int valcomb(const sol_t *solf, const sol_t *solb)
