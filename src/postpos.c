@@ -111,12 +111,12 @@ static void outrpos(FILE *fp, const double *r, const solopt_t *opt)
                     sep,dms2[2],sep,pos[2]);
         }
         else {
-            fprintf(fp,"%13.9f%s%14.9f%s%10.4f",pos[0]*R2D,sep,pos[1]*R2D,
-                    sep,pos[2]);
+            fprintf(fp,"%13.9f%s%14.9f%s%10.4f%s%14.4f%s%14.4f%s%14.4f",pos[0]*R2D,sep,pos[1]*R2D,
+                    sep,pos[2],sep,r[0],sep,r[1],sep,r[2]);
         }
     }
     else if (opt->posf==SOLF_XYZ) {
-        fprintf(fp,"%14.4f%s%14.4f%s%14.4f",r[0],sep,r[1],sep,r[2]);
+        fprintf(fp,"%13.9f%s%14.9f%s%10.4f%s%14.4f%s%14.4f%s%14.4f",pos[0]*R2D,sep,pos[1]*R2D,sep,pos[2],sep,r[0],sep,r[1],sep,r[2]);
     }
 }
 /* output header -------------------------------------------------------------*/
@@ -136,17 +136,17 @@ static void outheader(FILE *fp, char **file, int n, const prcopt_t *popt,
     }
     if (sopt->outhead) {
         if (!*sopt->prog) {
-            fprintf(fp,"%s program   : RTKLIB ver.%s\n",COMMENTH,VER_RTKLIB);
+            fprintf(fp,"%s program   : RTKLIB ver.%s%c\n",COMMENTH,VER_RTKLIB,LINEFEED);
         }
         else {
-            fprintf(fp,"%s program   : %s\n",COMMENTH,sopt->prog);
+            fprintf(fp,"%s program   : %s%c\n",COMMENTH,sopt->prog,LINEFEED);
         }
         for (i=0;i<n;i++) {
-            fprintf(fp,"%s inp file  : %s\n",COMMENTH,file[i]);
+            fprintf(fp,"%s inp file  : %s%c\n",COMMENTH,file[i],LINEFEED);
         }
         for (i=0;i<obss.n;i++)    if (obss.data[i].rcv==1) break;
         for (j=obss.n-1;j>=0;j--) if (obss.data[j].rcv==1) break;
-        if (j<i) {fprintf(fp,"\n%s no rover obs data\n",COMMENTH); return;}
+        if (j<i) {fprintf(fp,"%c\n%s no rover obs data%c\n",LINEFEED,COMMENTH,LINEFEED); return;}
         ts=obss.data[i].time;
         te=obss.data[j].time;
         t1=time2gpst(ts,&w1);
@@ -157,8 +157,8 @@ static void outheader(FILE *fp, char **file, int n, const prcopt_t *popt,
         if (sopt->times==2) te=timeadd(te,9*3600.0);
         time2str(ts,s2,1);
         time2str(te,s3,1);
-        fprintf(fp,"%s obs start : %s %s (week%04d %8.1fs)\n",COMMENTH,s2,s1[sopt->times],w1,t1);
-        fprintf(fp,"%s obs end   : %s %s (week%04d %8.1fs)\n",COMMENTH,s3,s1[sopt->times],w2,t2);
+        fprintf(fp,"%s obs start : %s %s (week%04d %8.1fs)%c\n",COMMENTH,s2,s1[sopt->times],w1,t1,LINEFEED);
+        fprintf(fp,"%s obs end   : %s %s (week%04d %8.1fs)%c\n",COMMENTH,s3,s1[sopt->times],w2,t2,LINEFEED);
     }
     if (sopt->outopt) {
         outprcopt(fp,popt);
@@ -166,9 +166,9 @@ static void outheader(FILE *fp, char **file, int n, const prcopt_t *popt,
     if (PMODE_DGPS<=popt->mode&&popt->mode<=PMODE_FIXED&&popt->mode!=PMODE_MOVEB) {
         fprintf(fp,"%s ref pos   :",COMMENTH);
         outrpos(fp,popt->rb,sopt);
-        fprintf(fp,"\n");
+        fprintf(fp,"%c\n",LINEFEED);
     }
-    if (sopt->outhead||sopt->outopt) fprintf(fp,"%s\n",COMMENTH);
+    if (sopt->outhead||sopt->outopt) fprintf(fp,"%s%c\n",COMMENTH,LINEFEED);
     
     outsolhead(fp,sopt);
 }
@@ -899,6 +899,59 @@ static FILE *openfile(const char *outfile)
     
     return !*outfile?stdout:fopen(outfile,"ab");
 }
+static int read_json_file_base_coord(const char *name, const char *fname, double *pos)
+{
+    int ret = 0;
+	FILE *fJSON = fopen(fname, "r");
+	char buffer[512] = { 0 };
+    int is_name_found = 0;
+	int is_itrf2020_found = 0;
+	int is_x = 0;
+	int is_y = 0;
+	int is_z = 0;
+	char *temp = NULL;
+    printf("%s %s\n", name, fname);
+	while (fJSON&&!feof(fJSON)&&fgets(buffer, sizeof(buffer), fJSON))
+	{
+        printf("%s", buffer);
+		if (is_name_found)
+		{
+			if (is_itrf2020_found)
+			{
+				if ((temp=strstr(buffer, "x:")) && !is_x )
+				{
+					is_x = 1;
+					pos[0] = atof(temp+2);
+				}	
+				if ((temp=strstr(buffer, "y:")) && !is_y )
+				{
+					is_y = 1;
+					pos[1] = atof(temp+2);
+				}	
+				if ((temp=strstr(buffer, "z:")) && !is_z )
+				{
+					is_z = 1;
+					pos[2] = atof(temp+2);
+				}
+				if (strstr(buffer, "}"))
+				{
+					ret = is_x && is_y && is_z;
+					break;
+				}
+			}		
+			else if (strstr(buffer, "itrf2020:"))
+			{
+				is_itrf2020_found = 1;
+			}
+		}
+		else if (strstr(buffer, "name:") && strstr(buffer, name))
+		{
+			is_name_found = 1;
+		}
+	}
+	if (fJSON) fclose(fJSON);
+    return ret;
+}
 /* execute processing session ------------------------------------------------*/
 static int execses(gtime_t ts, gtime_t te, double ti, const prcopt_t *popt,
                    const solopt_t *sopt, const filopt_t *fopt, int flag,
@@ -907,6 +960,7 @@ static int execses(gtime_t ts, gtime_t te, double ti, const prcopt_t *popt,
     FILE *fp;
     prcopt_t popt_=*popt;
     char tracefile[1024],statfile[1024],path[1024],*ext;
+	double pos[3]={0};
     
     trace(3,"execses : n=%d outfile=%s\n",n,outfile);
     
@@ -956,6 +1010,14 @@ static int execses(gtime_t ts, gtime_t te, double ti, const prcopt_t *popt,
     if (popt_.mode>PMODE_SINGLE&&*fopt->blq) {
         readotl(&popt_,fopt->blq,stas);
     }
+	if (strlen(popt_.jsonfile)>0&&(read_json_file_base_coord(stas[1].recsno,popt_.jsonfile,pos)||read_json_file_base_coord(stas[1].name,popt_.jsonfile,pos)))
+	{
+		popt_.refpos=0;
+        popt_.rb[0]=pos[0];
+        popt_.rb[1]=pos[1];
+        popt_.rb[2]=pos[2];
+        matcpy(popt_.ru, popt_.rb,3,1);
+	}
     /* rover/reference fixed position */
     if (popt_.mode==PMODE_FIXED) {
         if (!antpos(&popt_,1,&obss,&navs,stas,fopt->stapos)) {
