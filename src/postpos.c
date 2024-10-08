@@ -337,7 +337,7 @@ static void output_raw_pos(gtime_t time, int rcv, double *pos, double *rms, int 
 	return;
 }
 /* output raw obs data for external RTK engine */
-static void output_raw_obs(obsd_t *obs, int n, nav_t *nav, prcopt_t *opt, FILE *fout)
+static void output_raw_obs(obsd_t *obs, int n, nav_t *nav, const prcopt_t *opt, FILE *fout)
 {
 	obsd_t *obsd=obs;
 	int i=0;
@@ -364,8 +364,7 @@ static void output_raw_obs(obsd_t *obs, int n, nav_t *nav, prcopt_t *opt, FILE *
 		{
 			ws=time2gpst(obsd->time,&wk);
 			sys=satsys(obsd->sat,&prn);
-			fprintf(fout,"$OBS,%4i,%11.4f,%3i,%3i,%3i,%3i",wk,ws,obsd->rcv,obsd->sat,sys,prn);
-			fprintf(fout,",%16.4f,%16.4f,%16.4f,%14.4f,%14.4f,%14.4f,%14.4f,%10.4f,%7.2f,%3i",rs[0+i*6],rs[1+i*6],rs[2+i*6],rs[3+i*6],rs[4+i*6],rs[5+i*6],dts[0+i*2]*CLIGHT,dts[1+i*2]*CLIGHT,var[i],svh[i]);
+			fprintf(fout,"$OBS,%4i,%11.4f,%3i,%3i",wk,ws,obsd->rcv,obsd->sat);
 			for (j=0;j<NFREQ+NEXOBS;++j)
 			{
 				if (obsd->code[j]>0)
@@ -375,6 +374,13 @@ static void output_raw_obs(obsd_t *obs, int n, nav_t *nav, prcopt_t *opt, FILE *
 				}
 			}
 			fprintf(fout,"\n");
+		}
+		for (i=0,obsd=obs+i;i<n;++i,++obsd)
+		{
+			ws=time2gpst(obsd->time,&wk);
+			sys=satsys(obsd->sat,&prn);
+			fprintf(fout,"$VEC,%4i,%11.4f,%3i,%3i,%3i,%3i",wk,ws,obsd->rcv,obsd->sat,sys,prn);
+			fprintf(fout,",%16.4f,%16.4f,%16.4f,%14.4f,%14.4f,%14.4f,%14.4f,%10.4f,%7.2f,%3i\n",rs[0+i*6],rs[1+i*6],rs[2+i*6],rs[3+i*6],rs[4+i*6],rs[5+i*6],dts[0+i*2]*CLIGHT,dts[1+i*2]*CLIGHT,var[i],svh[i]);
 		}
         fflush(fout);
 	    free(rs); free(dts); free(var); 
