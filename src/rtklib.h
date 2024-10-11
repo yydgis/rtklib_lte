@@ -471,6 +471,12 @@ extern "C" {
 #define GEOID_GSI2000_M15 4             /* geoid model: GSI geoid 2000 1.0x1.5" */
 #define GEOID_RAF09       5             /* geoid model: IGN RAF09 for France 1.5"x2" */
 
+#if defined(_WIN32) || defined(WIN32)
+#define LINEFEED      '\r'
+#else
+#define LINEFEED      ''
+#endif
+
 #define COMMENTH    "%"                 /* comment line indicator for solution */
 #define MSG_DISCONN "$_DISCONNECT\r\n"  /* disconnect message */
 
@@ -1015,6 +1021,8 @@ typedef struct {        /* processing options type */
     int  freqopt;       /* disable L2-AR */
     char pppopt[256];   /* ppp option */
     gtime_t tr;         /* approximate time for rtcm */
+    char jsonfile[256]; /* json file for base coordinate */
+    char robsfile[256]; /* robs file for external engine */
 } prcopt_t;
 
 typedef struct {        /* solution options type */

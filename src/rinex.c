@@ -1355,34 +1355,58 @@ static int readrnxnavb(FILE *fp, const char *opt, double ver, int sys,
 static int add_eph(nav_t *nav, const eph_t *eph)
 {
     eph_t *nav_eph;
-    
-    if (nav->nmax<=nav->n) {
-        nav->nmax+=1024;
-        if (!(nav_eph=(eph_t *)realloc(nav->eph,sizeof(eph_t)*nav->nmax))) {
-            trace(1,"decode_eph malloc error: n=%d\n",nav->nmax);
-            free(nav->eph); nav->eph=NULL; nav->n=nav->nmax=0;
-            return 0;
+    /* check same eph or not */
+    double dt=0;
+    int i=0;
+    int is_old=0;
+    for (i=0,nav_eph=nav->eph+i;i<nav->n;++i,++nav_eph) {
+        if (nav_eph->sat==eph->sat && (dt=fabs(timediff(eph->toe,nav_eph->toe)))<0.01) {
+            *nav_eph=*eph;
+            is_old=1;
+            break;
         }
-        nav->eph=nav_eph;
     }
-    nav->eph[nav->n++]=*eph;
-    return 1;
+    if (!is_old) {
+        if (nav->nmax<=nav->n) {
+            nav->nmax+=1024;
+            if (!(nav_eph=(eph_t *)realloc(nav->eph,sizeof(eph_t)*nav->nmax))) {
+                trace(1,"decode_eph malloc error: n=%d\n",nav->nmax);
+                free(nav->eph); nav->eph=NULL; nav->n=nav->nmax=0;
+                return 0;
+            }
+            nav->eph=nav_eph;
+        }
+        nav->eph[nav->n++]=*eph;
+    }
+    return !is_old;
 }
 static int add_geph(nav_t *nav, const geph_t *geph)
 {
     geph_t *nav_geph;
-    
-    if (nav->ngmax<=nav->ng) {
-        nav->ngmax+=1024;
-        if (!(nav_geph=(geph_t *)realloc(nav->geph,sizeof(geph_t)*nav->ngmax))) {
-            trace(1,"decode_geph malloc error: n=%d\n",nav->ngmax);
-            free(nav->geph); nav->geph=NULL; nav->ng=nav->ngmax=0;
-            return 0;
+    /* check same eph or not */
+    double dt=0;
+    int i=0;
+    int is_old=0;
+    for (i=0,nav_geph=nav->geph+i;i<nav->ng;++i,++nav_geph) {
+        if (nav_geph->sat==geph->sat && (dt=fabs(timediff(geph->toe,nav_geph->toe)))<0.01) {
+            *nav_geph=*geph;
+            is_old=1;
+            break;
         }
-        nav->geph=nav_geph;
     }
-    nav->geph[nav->ng++]=*geph;
-    return 1;
+    if (!is_old) {    
+        if (nav->ngmax<=nav->ng) {
+            nav->ngmax+=1024;
+            if (!(nav_geph=(geph_t *)realloc(nav->geph,sizeof(geph_t)*nav->ngmax))) {
+                trace(1,"decode_geph malloc error: n=%d\n",nav->ngmax);
+                free(nav->geph); nav->geph=NULL; nav->ng=nav->ngmax=0;
+                return 0;
+            }
+            nav->geph=nav_geph;
+        }
+        nav->geph[nav->ng++]=*geph;
+    }
+    return !is_old;
 }
 static int add_seph(nav_t *nav, const seph_t *seph)
 {

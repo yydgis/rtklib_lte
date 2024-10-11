@@ -68,6 +68,8 @@ static const char *help[]={
 " -s sep    field separator [' ']",
 " -r x y z  reference (base) receiver ecef pos (m) [average of single pos]",
 "           rover receiver ecef pos (m) for fixed or ppp-fixed mode",
+" -json file reference (base) receiver ecef pos (m) from json file",
+" -robs file output data used for external RTK engine",
 " -l lat lon hgt reference (base) receiver latitude/longitude/height (deg/m)",
 "           rover latitude/longitude/height for fixed or ppp-fixed mode",
 " -y level  output soltion status (0:off,1:states,2:residuals) [0]",
@@ -108,6 +110,7 @@ int main(int argc, char **argv)
     prcopt.refpos=1;
     prcopt.glomodear=1;
     prcopt.nf=3;/* default triple band L1+L2+L5 */
+	memset(prcopt.jsonfile, 0, sizeof(prcopt.jsonfile));
     solopt.timef=0;
     sprintf(solopt.prog ,"%s ver.%s %s",PROGNAME,VER_RTKLIB,PATCH_LEVEL);
     sprintf(filopt.trace,"%s.trace",PROGNAME);
@@ -172,6 +175,12 @@ int main(int argc, char **argv)
             prcopt.refpos=prcopt.rovpos=0;
             for (j=0;j<3;j++) prcopt.rb[j]=atof(argv[++i]);
             matcpy(prcopt.ru,prcopt.rb,3,1);
+        }
+        else if (!strcmp(argv[i],"-json")&&i+1<argc) {
+            strcpy(prcopt.jsonfile, argv[++i]);
+        }
+        else if (!strcmp(argv[i],"-robs")&&i+1<argc) {
+            strcpy(prcopt.robsfile, argv[++i]);
         }
         else if (!strcmp(argv[i],"-l")&&i+3<argc) {
             prcopt.refpos=prcopt.rovpos=0;
