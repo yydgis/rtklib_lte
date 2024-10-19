@@ -209,6 +209,7 @@ int main(int argc, char **argv)
         else if (*argv[i]=='-') printhelp();
         else if (n<MAXFILE) infile[n++]=argv[i];
     }
+    ret = rtkproc(rovefname, basefname, brdcfname, outfile, prcopt.tr);
     if (!prcopt.navsys) {
         prcopt.navsys=SYS_GPS|SYS_GLO|SYS_GAL|SYS_CMP|SYS_QZS; /* default 5 systems */
     }
@@ -217,7 +218,6 @@ int main(int argc, char **argv)
         return -2;
     }
     ret=postpos(ts,te,tint,0.0,&prcopt,&solopt,&filopt,infile,n,outfile,"","");
-	ret=rtkproc(rovefname,basefname,brdcfname,prcopt.tr);
     
     if (!ret) fprintf(stderr,"%40s\r","");
     return ret;

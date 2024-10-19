@@ -156,6 +156,15 @@
     <ClCompile Include="..\..\..\src\solution.c" />
     <ClCompile Include="..\..\..\src\tides.c" />
     <ClCompile Include="..\..\..\src\rcvraw.c" />
+    <ClCompile Include="..\..\..\src\rcv\binex.c" />
+    <ClCompile Include="..\..\..\src\rcv\crescent.c" />
+    <ClCompile Include="..\..\..\src\rcv\javad.c" />
+    <ClCompile Include="..\..\..\src\rcv\novatel.c" />
+    <ClCompile Include="..\..\..\src\rcv\nvs.c" />
+    <ClCompile Include="..\..\..\src\rcv\rt17.c" />
+    <ClCompile Include="..\..\..\src\rcv\septentrio.c" />
+    <ClCompile Include="..\..\..\src\rcv\skytraq.c" />
+    <ClCompile Include="..\..\..\src\rcv\ss2.c" />
     <ClCompile Include="..\..\..\src\rcv\ublox.c" />
     <ClCompile Include="rnx2rtkp.c" />
   </ItemGroup>

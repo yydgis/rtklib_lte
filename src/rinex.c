@@ -1352,7 +1352,7 @@ static int readrnxnavb(FILE *fp, const char *opt, double ver, int sys,
     return -1;
 }
 /* add ephemeris to navigation data ------------------------------------------*/
-static int add_eph(nav_t *nav, const eph_t *eph)
+extern int add_eph(nav_t *nav, const eph_t *eph)
 {
     eph_t *nav_eph;
     /* check same eph or not */
@@ -1376,11 +1376,11 @@ static int add_eph(nav_t *nav, const eph_t *eph)
             }
             nav->eph=nav_eph;
         }
-        nav->eph[nav->n++]=*eph;
+        if (nav->n<nav->nmax) nav->eph[nav->n++]=*eph;
     }
     return !is_old;
 }
-static int add_geph(nav_t *nav, const geph_t *geph)
+extern int add_geph(nav_t *nav, const geph_t *geph)
 {
     geph_t *nav_geph;
     /* check same eph or not */
@@ -1404,7 +1404,7 @@ static int add_geph(nav_t *nav, const geph_t *geph)
             }
             nav->geph=nav_geph;
         }
-        nav->geph[nav->ng++]=*geph;
+        if (nav->ng<nav->ngmax) nav->geph[nav->ng++]=*geph;
     }
     return !is_old;
 }

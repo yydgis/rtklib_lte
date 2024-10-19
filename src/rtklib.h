@@ -1508,6 +1508,8 @@ EXPORT int  init_rnxctr (rnxctr_t *rnx);
 EXPORT void free_rnxctr (rnxctr_t *rnx);
 EXPORT int  open_rnxctr (rnxctr_t *rnx, FILE *fp);
 EXPORT int  input_rnxctr(rnxctr_t *rnx, FILE *fp);
+EXPORT int  add_eph(nav_t* nav, const  eph_t*  eph);
+EXPORT int add_geph(nav_t* nav, const geph_t* geph);
 /* rtcm read functions */
 EXPORT int readrtcm(const char *file, int rcv, gtime_t ts, gtime_t te, gtime_t tr,
                     double tint, const char *opt, obs_t *obs, nav_t *nav,
@@ -1730,7 +1732,7 @@ EXPORT int  rtkpos (rtk_t *rtk, const obsd_t *obs, int nobs, const nav_t *nav);
 EXPORT int  rtkopenstat(const char *file, int level);
 EXPORT void rtkclosestat(void);
 EXPORT int  rtkoutstat(rtk_t *rtk, char *buff);
-EXPORT int  rtkproc(char *rovefname, char *basefname, char *brdcfname);
+EXPORT int  rtkproc(char *rovefname, char *basefname, char *brdcfname, char *outfile, gtime_t tr);
 
 /* precise point positioning -------------------------------------------------*/
 EXPORT void pppos(rtk_t *rtk, const obsd_t *obs, int n, const nav_t *nav);
