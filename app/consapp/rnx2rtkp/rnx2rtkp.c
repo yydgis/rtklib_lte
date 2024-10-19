@@ -73,7 +73,10 @@ static const char *help[]={
 " -l lat lon hgt reference (base) receiver latitude/longitude/height (deg/m)",
 "           rover latitude/longitude/height for fixed or ppp-fixed mode",
 " -y level  output soltion status (0:off,1:states,2:residuals) [0]",
-" -x level  debug trace level (0:off) [0]"
+" -x level  debug trace level (0:off) [0]",
+" -rove file rove file name (support ubx, rtcm)",
+" -base file base file name (support rtcm)",
+" -brdc file base file name (support rtcm)"
 };
 /* show message --------------------------------------------------------------*/
 extern int showmsg(const char *format, ...)
@@ -104,6 +107,9 @@ int main(int argc, char **argv)
     int i,j,n,ret;
     char *infile[MAXFILE],*outfile="",*p;
     double er[]={2000,1,1,0,0,0}; /* approximate time for rtcm data file */
+	char *rovefname=NULL;
+	char *basefname=NULL;
+	char *brdcfname=NULL;
     
     prcopt.mode  =PMODE_KINEMA;
     prcopt.navsys=0;
@@ -179,6 +185,15 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i],"-json")&&i+1<argc) {
             strcpy(prcopt.jsonfile, argv[++i]);
         }
+        else if (!strcmp(argv[i],"-base")&&i+1<argc) {
+            basefname=argv[++i];
+        }
+        else if (!strcmp(argv[i],"-rove")&&i+1<argc) {
+            rovefname=argv[++i];
+        }
+        else if (!strcmp(argv[i],"-brdc")&&i+1<argc) {
+            brdcfname=argv[++i];
+        }
         else if (!strcmp(argv[i],"-robs")&&i+1<argc) {
             strcpy(prcopt.robsfile, argv[++i]);
         }
@@ -202,6 +217,7 @@ int main(int argc, char **argv)
         return -2;
     }
     ret=postpos(ts,te,tint,0.0,&prcopt,&solopt,&filopt,infile,n,outfile,"","");
+	ret=rtkproc(rovefname,basefname,brdcfname,prcopt.tr);
     
     if (!ret) fprintf(stderr,"%40s\r","");
     return ret;

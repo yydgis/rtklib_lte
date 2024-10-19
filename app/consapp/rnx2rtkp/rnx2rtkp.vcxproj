@@ -155,6 +155,8 @@
     <ClCompile Include="..\..\..\src\sbas.c" />
     <ClCompile Include="..\..\..\src\solution.c" />
     <ClCompile Include="..\..\..\src\tides.c" />
+    <ClCompile Include="..\..\..\src\rcvraw.c" />
+    <ClCompile Include="..\..\..\src\rcv\ublox.c" />
     <ClCompile Include="rnx2rtkp.c" />
   </ItemGroup>
   <ItemGroup>

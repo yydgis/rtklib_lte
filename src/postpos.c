@@ -388,6 +388,267 @@ static void output_raw_obs(obsd_t *obs, int n, nav_t *nav, const prcopt_t *opt, 
 	}
 	return;
 }
+static void set_output_file_name(const char* fname, const char* key, char *outfname)
+{
+	char filename[255] = { 0 }, outfilename[255] = { 0 };
+	strcpy(filename, fname);
+	char* temp = strrchr(filename, '.');
+	if (temp) temp[0] = '\0';
+	sprintf(outfname, "%s-%s", filename, key);
+}
+static FILE* set_output_file(const char* fname, const char* key, int is_binary)
+{
+	char filename[255] = { 0 };
+	set_output_file_name(fname, key, filename);
+	return fopen(filename, is_binary?"wb":"w");
+}
+static int read_rtcm_nav(const char *fname, nav_t *nav, gtime_t tr)
+{
+	int ret=0,data=0,sat=0,sys=0,prn=0,numofepo=0,numofeph=0;
+    geph_t *geph=NULL;
+    eph_t *eph=NULL;
+	FILE *fLOG=fname?fopen(fname,"rb"):NULL;
+	rtcm_t rtcm;
+	init_rtcm(&rtcm);
+	if (tr.time==0) tr=utc2gpst(timeget());
+    rtcm.time=rtcm.time_s=tr;
+	while (fLOG&&!feof(fLOG)&&(data=fgetc(fLOG))!=EOF)
+	{
+		ret=input_rtcm3(&rtcm,data);
+        if (ret==1) {
+            ++numofepo;
+        } else if (ret==2) {
+            if ((sys=satsys((sat=rtcm.ephsat),&prn))==SYS_GLO) { /* GLO EPH */
+                geph=rtcm.nav.geph+(prn-1);
+                add_geph(nav,geph);
+                ++numofeph;
+            } else if (sys==SYS_GPS||sys==SYS_CMP||sys==SYS_QZS||sys==SYS_GAL||sys==SYS_IRN) {
+                eph=rtcm.nav.eph+(sat-1+MAXSAT*rtcm.ephset);
+                add_eph(nav,eph);
+                ++numofeph;
+            }
+        } else if (ret==5) {
+        }
+	}
+	free_rtcm(&rtcm);
+	if (fLOG) fclose(fLOG);
+	return ret;
+}
+static int read_ubx_nav(const char *fname, nav_t *nav)
+{
+	int ret=0,data=0,sat=0,sys=0,prn=0,numofepo=0,numofeph=0;
+    geph_t *geph=NULL;
+    eph_t *eph=NULL;
+	FILE *fLOG=fname?fopen(fname,"rb"):NULL;
+	raw_t raw;
+	init_raw(&raw,STRFMT_UBX);
+	while (fLOG&&!feof(fLOG)&&(data=fgetc(fLOG))!=EOF)
+	{
+		ret=input_ubx(&raw,data);
+        if (ret==1) {
+            ++numofepo;
+        } else if (ret==2) {
+            if ((sys=satsys((sat=raw.ephsat),&prn))==SYS_GLO) { /* GLO EPH */
+                geph=raw.nav.geph+(prn-1);
+                add_geph(nav,geph);
+                ++numofeph;
+            } else if (sys==SYS_GPS||sys==SYS_CMP||sys==SYS_QZS||sys==SYS_GAL||sys==SYS_IRN) {
+                eph=raw.nav.eph+(sat-1+MAXSAT*raw.ephset);
+                add_eph(nav,eph);
+                ++numofeph;
+            }
+        } else if (ret==5) {
+        }
+	}
+	free_raw(&raw);
+	if (fLOG) fclose(fLOG);
+	return numofepo>0||numofeph>0;
+}
+static int read_ubx_obs(FILE *fLOG, raw_t *raw, FILE *fGGA)
+{
+	int ret=0,data=0,nbyte=0;
+	char gga[1200]={0};
+	while (fLOG&&!feof(fLOG)&&(data=fgetc(fLOG))!=EOF)
+	{
+		if (nbyte>-=1200) nbyte=0;
+		if (nbyte==0) memset(gga,0,sizeof(gga));
+		if ((nbyte==0&&data=='$')||nbyte>0)
+		{
+			gga[nbyte++]=data;
+			if (nbyte > 5 && ((gga[nbyte - 1] == '\r'|| gga[nbyte - 1] == '\n') && gga[nbyte - 4] == '*')||(gga[nbyte - 2] == '\r' && gga[nbyte - 1] == '\n'))
+			{
+				if (fGGA) fprintf(fGGA, "%s",gga);
+				nbyte = 0;
+			}
+		}
+		ret=input_ubx(raw,data);
+        if (ret==1) {
+            break;
+        } else if (ret==2) {
+        } else if (ret==5) {
+        }
+	}
+	return ret;
+}
+static int read_rtcm_obs(FILE *fLOG, rtcm_t *rtcm, FILE *fGGA)
+{
+	int ret=0,data=0,nbyte=0;
+	char gga[1200]={0};
+	while (fLOG&&!feof(fLOG)&&(data=fgetc(fLOG))!=EOF)
+	{
+		if (nbyte>-=1200) nbyte=0;
+		if (nbyte==0) memset(gga,0,sizeof(gga));
+		if ((nbyte==0&&data=='$')||nbyte>0)
+		{
+			gga[nbyte++]=data;
+			if (nbyte > 5 && ((gga[nbyte - 1] == '\r'|| gga[nbyte - 1] == '\n') && gga[nbyte - 4] == '*')||(gga[nbyte - 2] == '\r' && gga[nbyte - 1] == '\n'))
+			{
+				if (fGGA) fprintf(fGGA, "%s",gga);
+				nbyte = 0;
+			}
+		}
+		ret=input_rtcm(rtcm,data);
+        if (ret==1) {
+            break;
+        } else if (ret==2) {
+        } else if (ret==5) {
+        }
+	}
+	return ret;
+}
+extern int  rtkproc(char *rovefname, char *basefname, char *brdcfname, gtime_t tr)
+{
+    int ret=0,is_ubx=0,is_rtcm=0;
+    gtime_t time={0};
+    sol_t sol={{0}};
+    rtk_t rtk;
+    obsd_t obs[MAXOBS*2]; /* for rover and base */
+    double rb[3]={0};
+	double rms[3]={0};
+    int i,nobs,n,solstatic,pri[]={6,1,2,3,4,5,1,6};
+    FILE *frobs=rovefname?set_output_file(rovefname,"-obs.txt",0):NULL;
+    FILE *fnmea=rovefname?set_output_file(rovefname,"-gga.nmea",0):NULL;
+	FILE *frove=rovefname?fopen(rovefname,"rb"):NULL;
+	FILE *fbase=basefname?fopen(basefname,"rb"):NULL;
+	FILE *fbrdc=brdcfname?fopen(brdcfname,"rb"):NULL;
+    prcopt_t prcopt=prcopt_default;
+    solopt_t solopt=solopt_default;
+	prcopt_t *popt=&prcopt;
+	solopt_t *sopt=&solopt;
+	rtcm_t rtcm_rove;
+	rtcm_t rtcm_base;
+	raw_t raw_rove;
+	int baseid =-1;
+	double basepos[3]={0};
+	
+	if (tr.time==0) tr=utc2gpst(timeget());
+
+	if (frove&&fbase) popt->mode=PMODE_KINEMA;
+    popt->navsys=SYS_GPS|SYS_GLO|SYS_GAL|SYS_CMP|SYS_QZS;
+    popt->refpos=4;
+    prcopt.glomodear=1;
+
+    trace(3,"rtkproc rove filename: %s\n",rovefname ? rovefname : "");
+    trace(3,"rtkproc base filename: %s\n",basefname ? basefname : "");
+    trace(3,"rtkproc brdc filename: %s\n",brdcfname ? brdcfname : "");
+    
+    is_ubx=read_ubx_nav (rovefname,&navs);
+    if (!is_ubx) is_rtcm=read_rtcm_nav (rovefname,&navs,tr);
+    read_rtcm_nav(basefname,&navs,tr);
+    read_rtcm_nav(brdcfname,&navs,tr);
+
+    rtkinit(&rtk,popt);
+
+	init_raw (& raw_rove,STRFMT_UBX);
+	init_rtcm(&rtcm_rove);
+	init_rtcm(&rtcm_base);
+    rtcm_rove.time=rtcm_rove.time_s=rtcm_base.time=rtcm_base.time_s=tr;
+ 
+    while ((is_ubx&&read_ubx_obs(frove, &raw_rove, fnmea)&&raw_rove.obs.n>0)||(is_rtcm&&read_rtcm_obs(frove, &rtcm_rove, fnmea)&&rtcm_rove.obs.n>0))&& {
+        while (!(rtcm_base.obs.n>0&&(dt=timediff(raw_rove.obs[0].time, rtcm_base.obs[0].time))<0.01)
+        {
+			ret=read_rtcm_obs(fbase,&rtcm_base,NULL);
+        }
+		if (is_ubx)
+        {
+			memcpy(obs,raw_rove.obs.data,sizeof(obsd_t)*raw_rove.obs.n);
+			nobs=raw_rove.obs.n;
+        }
+		else
+		{
+			memcpy(obs,rtcm_rove.obs.data,sizeof(obsd_t)*rtcm_rove.obs.n);
+			nobs=rtcm_rove.obs.n;
+		}
+		if (rtcm_base.obs.n>0&&fabs(dt)<0.01)
+		{
+			memcpy(obs+nobs,rtcm_base.obs.data,sizeof(obsd_t)*rtcm_base.obs.n);
+			nobs+=rtcm_base.obs.n;
+		}
+        /* exclude satellites */
+        for (i=n=0;i<nobs;i++) {
+            if ((satsys(obs[i].sat,NULL)&popt->navsys)&&
+                popt->exsats[obs[i].sat-1]!=1) obs[n++]=obs[i];
+        }
+        if (n<=0) continue;
+        
+        /* carrier-phase bias correction */
+        if (!strstr(popt->pppopt,"-ENA_FCB")) {
+            corr_phase_bias_ssr(obs,n,&navs);
+        }
+		/* output raw obs data */
+		output_raw_obs(obs,n,&navs,popt,frobs);
+        if (!rtkpos(&rtk,obs,n,&navs)) continue;
+		if (n>0)
+		{
+            /* output raw pos data for base */
+            rms[0]=rms[1]=rms[2]=0;
+            output_raw_pos(obs[0].time,2,rtk.rb,rms,0,frobs);
+            /* output raw pos data for rove */
+            rms[0]=sqrt(rtk.sol.qr[0]);
+			rms[1]=sqrt(rtk.sol.qr[1]);
+			rms[2]=sqrt(rtk.sol.qr[2]);
+			output_raw_pos(obs[0].time,1,rtk.sol.rr,rms,rtk.sol.stat,frobs);
+		}
+        
+        if (mode==0) { /* forward/backward */
+            if (!solstatic) {
+                outsol(fp,&rtk.sol,rtk.rb,sopt);
+            }
+            else if (time.time==0||pri[rtk.sol.stat]<=pri[sol.stat]) {
+                sol=rtk.sol;
+                for (i=0;i<3;i++) rb[i]=rtk.rb[i];
+                if (time.time==0||timediff(rtk.sol.time,time)<0.0) {
+                    time=rtk.sol.time;
+                }
+            }
+        }
+        else if (!revs) { /* combined-forward */
+            if (isolf>=nepoch) return;
+            solf[isolf]=rtk.sol;
+            for (i=0;i<3;i++) rbf[i+isolf*3]=rtk.rb[i];
+            isolf++;
+        }
+        else { /* combined-backward */
+            if (isolb>=nepoch) return;
+            solb[isolb]=rtk.sol;
+            for (i=0;i<3;i++) rbb[i+isolb*3]=rtk.rb[i];
+            isolb++;
+        }
+    }
+    if (mode==0&&solstatic&&time.time!=0.0) {
+        sol.time=time;
+        outsol(fp,&sol,rb,sopt);
+    }
+    rtkfree(&rtk);
+	free_raw(&raw);
+	free_rtcm(&rtcm);
+    if (frobs) fclose(frobs);
+    if (fnmea) fclose(fnmea);
+	if (frove) fclose(frove);
+	if (fbase) fclose(fbase);
+	if (fbrdc) fclose(fbrdc);
+    return ret;
+}
 /* process positioning -------------------------------------------------------*/
 static void procpos(FILE *fp, const prcopt_t *popt, const solopt_t *sopt,
                     int mode)
