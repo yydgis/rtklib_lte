@@ -64,6 +64,44 @@
 #define P2_59       1.734723475976810E-18 /* 2^-59 */
 #define P2_66       1.355252715606880E-20 /* 2^-66 */
 
+/* 2W(10), 2X(17) */
+static double  g_2w_2x_dcb[] = { 
+-0.3120, /* G01 */
+99.9999, /*     */
+-0.7070, /* G03 */
+ 0.7140, /* G04 */
+-0.2030, /* G05 */
+-1.1450, /* G06 */
+ 0.4860, /* G07 */
+-1.3310, /* G08 */
+ 0.4700, /* G09 */
+ 1.5220, /* G10 */
+ 0.4360, /* G11 */
+-0.4180, /* G12 */
+99.9999, /*     */
+ 0.3510, /* G14 */
+ 0.3430, /* G15 */
+99.9999, /*     */
+ 0.3090, /* G17 */
+ 0.2790, /* G18 */
+99.9999, /*     */
+99.9999, /*     */
+99.9999, /*     */
+99.9999, /*     */
+ 0.5170, /* G23 */
+ 0.0170, /* G24 */
+-1.1520, /* G25 */
+ 0.7450, /* G26 */
+ 0.1860, /* G27 */
+ 0.4410, /* G28 */
+-0.2030, /* G29 */
+-0.4920, /* G30 */
+-0.3170, /* G31 */
+-0.5340, /* G32 */
+};
+
+#define NSM (CLIGHT*1.0e-9)
+
 /* type definition -----------------------------------------------------------*/
 
 typedef struct {              /* multi-signal-message header type */
@@ -1993,7 +2031,7 @@ static void save_msm_obs(rtcm_t *rtcm, int sys, msm_h_t *h, const double *r,
     double tt,freq;
     uint8_t code[32];
     char *msm_type="",*q=NULL;
-    int i,j,k,type,prn,sat,fcn,index=0,idx[32];
+    int i,j,k,type,prn,sat,fcn,index=0,idx[32],k1=0,k2=0;
     
     type=getbitu(rtcm->buff,24,12);
     
@@ -2094,6 +2132,22 @@ static void save_msm_obs(rtcm_t *rtcm, int sys, msm_h_t *h, const double *r,
             }
             j++;
         }
+		/* 2X to 2W using DCB if there is no 2W for GPS */
+		if (sys==SYS_GPS&&fabs(g_2w_2x_dcb[prn-1]-99.9999)>0.01) {
+			for (k2=0;k2<(NFREQ+NEXOBS);++k2) {
+				if (rtcm->obs.data[index].code[k2]==CODE_L2W) break;
+			}
+			if (k2==(NFREQ+NEXOBS)) { /* find 2X */
+				for (k1=0;k1<(NFREQ+NEXOBS);++k1) {
+					if (rtcm->obs.data[index].code[k1]==CODE_L2X) break;
+				}
+				if (k1<(NFREQ+NEXOBS)&&(k2=code2idx(sys,CODE_L2W))<(NFREQ+NEXOBS)) { /* found 2X */
+					rtcm->obs.data[index].code[k2]=CODE_L2W;
+					rtcm->obs.data[index].P[k2]=fabs(rtcm->obs.data[index].P[k1])<0.001?0:(rtcm->obs.data[index].P[k1]+g_2w_2x_dcb[prn-1]*NSM); /* convert ns to meter */
+					rtcm->obs.data[index].L[k2]=rtcm->obs.data[index].L[k1];
+				}
+			}
+		}
     }
 }
 /* decode type MSM message header --------------------------------------------*/
