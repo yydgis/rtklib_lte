@@ -474,7 +474,7 @@ extern "C" {
 #if defined(_WIN32) || defined(WIN32)
 #define LINEFEED      '\r'
 #else
-#define LINEFEED      ''
+#define LINEFEED      ' '
 #endif
 
 #define COMMENTH    "%"                 /* comment line indicator for solution */
