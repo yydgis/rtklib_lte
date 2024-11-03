@@ -139,6 +139,7 @@ static int log2rtcm(const char *fname)
 				tempBuff[0] = buf.dat[buf.nloc[1]];
 				if (fread((char*)tempBuff+1, sizeof(char), slen-1, fLOG) == (slen-1))
 				{
+					rtcm->time_s = buf.time;
 					for (i = 0; i < slen - 1; ++i)
 					{
 						int ret1 = input_rtcm3(rtcm, tempBuff[i]);
@@ -174,11 +175,15 @@ static int log2rtcm(const char *fname)
 							++numofepoch;
 							double dt = timediff(buf.time, rtcm->time);
 
-							if (dt >= 3.0)
-								numofepoch_3000++;
+							if (dt > 0)
+							{
 
-							//printf("%s,%10.4f,%3i\n", time_str(buf.time, 3), dt, rtcm->obs.n);
-							vDt.push_back(dt);
+								if (dt >= 3.0)
+									numofepoch_3000++;
+
+								//printf("%s,%10.4f,%3i\n", time_str(buf.time, 3), dt, rtcm->obs.n);
+								vDt.push_back(dt);
+							}
 						}
 					}
 					if (fRTCM) fwrite(tempBuff, sizeof(char), slen - 2, fRTCM);
@@ -287,6 +292,7 @@ static int procrtcm(const char* fname)
 					int week = getbitu(rtcm->buff, 24 + 12 + 3 + 9, 16);
 					double ws = getbitu(rtcm->buff, 24 + 12 + 3 + 9 + 16, 32) * 0.001;
 					time_rcv = gpst2time(week, ws);
+					rtcm->time_s = time_rcv;
 					++numof4054_1;
 				}
 				if (stype == 300)
