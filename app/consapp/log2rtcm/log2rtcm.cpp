@@ -20,6 +20,7 @@ extern int showmsg(const char *format, ...)
 }
 
 #define MAX_HEADER_BUFF (64)
+#define MAX_HEADER_SEGM (10)
 
 typedef struct
 {
@@ -28,10 +29,10 @@ typedef struct
 	int slen;
 	int nlen;
 	int nseg;
-	int nloc[4];
+	int nloc[MAX_HEADER_SEGM];
 }buf_t;
 
-static int add_buff_data(buf_t* buff, int data)
+static int add_buff_data(buf_t* buff, int data, int nseg)
 {
 	int ret = 0;
 	double ms_time = 0;
@@ -48,20 +49,23 @@ static int add_buff_data(buf_t* buff, int data)
 	buff->dat[buff->nlen++] = data;
 	if (data == ',')
 	{
-		if (buff->nseg < 2)
+		if (buff->nseg < MAX_HEADER_SEGM)
+		{
 			buff->nloc[buff->nseg++] = buff->nlen;
-		return 0;
+		}
+		else
+		{
+			buff->nlen = 0;
+		}
 	}
-	if (buff->nseg < 2) return 0;
-	if (data != 0xD3)
+	if (buff->nseg < 2 || buff->nlen < 2) return 0;
+	if (data == ',' && buff->nseg >= nseg)
 	{
-		buff->nlen = 0;
-		return 0;
-	}
-	if (buff->slen == 0)
-	{
-		buff->slen = atoi((char*)(buff->dat + buff->nloc[0]));
-		ms_time = atof((char*)(buff->dat));
+		buff->slen = atoi((char*)(buff->dat + buff->nloc[buff->nseg - 2]));
+		if (buff->nseg > 2)
+			ms_time = atof((char*)(buff->dat + buff->nloc[buff->nseg - 3]));
+		else
+			ms_time = atof((char*)(buff->dat));
 		ms_time += 18000.0;
 		buff->time.time = (time_t)floor(ms_time / 1000);
 		buff->time.sec = ms_time / 1000 - buff->time.time;
@@ -73,13 +77,13 @@ static int add_buff_data(buf_t* buff, int data)
 	return ret;
 }
 
-static int read_buff_from_file(FILE* fBIN, buf_t* buff)
+static int read_buff_from_file(FILE* fBIN, buf_t* buff, int nseg)
 {
 	int ret = 0;
 	int data = 0;
 	while (fBIN && !feof(fBIN) && (data=fgetc(fBIN))!=EOF)
 	{
-		if (ret = add_buff_data(buff, data)) break;
+		if (ret = add_buff_data(buff, data, nseg)) break;
 	}
 	return ret;
 }
@@ -94,7 +98,72 @@ static FILE* set_output_file(const char* fname, const char* key)
 	return fopen(outfilename, "wb");
 }
 
-static int log2rtcm(const char *fname)
+static int output_status(std::vector<double>& vDt, std::map<int, int>& mGAP, int numofmsg, int numofcrc, int numofepoch, gtime_t stime, gtime_t etime, int v1, int v2, int v3, int v4, const char *fname, int is_time)
+{
+	double dt_avg = 0;
+	double dt_68 = 0;
+	double dt_95 = 0;
+	double dt_99 = 0;
+	double dt_min = 0;
+	double dt_max = 0;
+	int i = 0;
+	int numofepoch_3s = 0;
+	if (vDt.size() > 0)
+	{
+		std::sort(vDt.begin(), vDt.end());
+		dt_min = vDt.front();
+		for (std::vector<double>::iterator pDt = vDt.begin(); pDt != vDt.end(); ++pDt)
+		{
+			if (!is_time)
+				*pDt -= dt_min;
+			if (*pDt > 3.0)
+			{
+				++numofepoch_3s;
+			}
+		}
+		for (i = 0; i < (int)vDt.size(); ++i)
+			dt_avg += vDt[i];
+
+		dt_avg /= (int)vDt.size();
+		int loc68 = (int)(vDt.size() * 0.6827);
+		int loc95 = (int)(vDt.size() * 0.9545);
+		int loc99 = (int)(vDt.size() * 0.9973);
+
+		dt_68 = vDt[loc68];
+		dt_95 = vDt[loc95];
+		dt_99 = vDt[loc99];
+		dt_max = vDt.back();
+	}
+	FILE* fSUM = fopen("sum.txt", "r");
+	char buffer[255] = { 0 };
+	int line = 0;
+	while (fSUM && fgets(buffer, sizeof(buffer), fSUM))
+	{
+		char* temp = strrchr(buffer, '\n');
+		if (temp) temp[0] = '\0';
+		if (strlen(buffer) > 0)
+			++line;
+	}
+	if (fSUM) fclose(fSUM);
+	fSUM = fopen("sum.txt", "a");
+	if (!line)
+	{
+		fprintf(fSUM, "filename,numofmsg,numofcrc_failure,numofepoch,numofepoch_3s,dt_avg,dt_68,dt_95,dt_99,dt_min,dt_max,dt_count,time_duration,data_interval_counts\n");
+	}
+	printf("%s,%6i,%6i,%6i,%6i,%10.4f,%10.4f,%10.4f,%10.4f,%10.4f,%10.4f,%6i,%10.4f,%7.2f,%i,%i,%i", fname, numofmsg, numofcrc, numofepoch, numofepoch_3s, dt_avg, dt_68, dt_95, dt_99, dt_min, dt_max, (int)vDt.size(), timediff(etime, stime), v1 / 3600.0 / 24.0, -v2, v3, v4);
+	if (fSUM) fprintf(fSUM, "%s,%6i,%6i,%6i,%6i,%10.4f,%10.4f,%10.4f,%10.4f,%10.4f,%10.4f,%6i,%10.4f,%7.2f,%i,%i,%i", fname, numofmsg, numofcrc, numofepoch, numofepoch_3s, dt_avg, dt_68, dt_95, dt_99, dt_min, dt_max, (int)vDt.size(), timediff(etime, stime), v1 / 3600.0 / 24.0, -v2, v3, v4);
+	for (std::map<int, int>::iterator pGAP = mGAP.begin(); pGAP != mGAP.end(); ++pGAP)
+	{
+		if (fSUM) fprintf(fSUM, ",%i(%i)", pGAP->first, pGAP->second);
+		printf(",%i(%i)", pGAP->first, pGAP->second);
+	}
+	printf("\n");
+	if (fSUM) fprintf(fSUM, "\n");
+	if (fSUM) fclose(fSUM);
+	return 0;
+}
+
+static int log2rtcm(const char *fname, int is_geod, int is_out, int is_time)
 {
 	int ret = 0;
 	FILE *fLOG = fopen(fname, "rb");
@@ -108,7 +177,6 @@ static int log2rtcm(const char *fname)
 	gtime_t stime = { 0 };
 	gtime_t etime = { 0 };
 	int numofepoch = 0;
-	int numofepoch_3000 = 0;
 	std::map<int, int> mGAP;
 	int numofcrc = 0;
 	int numofmsg = 0;
@@ -118,12 +186,12 @@ static int log2rtcm(const char *fname)
 	int v4 = 0;
 	while (fLOG && !feof(fLOG))
 	{
-		ret = read_buff_from_file(fLOG, &buf);
+		ret = read_buff_from_file(fLOG, &buf, is_geod ? 3 : 2);
 		if (ret)
 		{
 			int slen = buf.slen + 2; /* \r\n */
 			int ret = 0;
-			buf.dat[buf.nloc[1]-1] = '\0';
+			buf.dat[buf.nloc[buf.nseg-1]-1] = '\0';
 			//printf("%s,%s\n", time_str(buf.time, 2), (char*)buf.dat);
 			if (slen > 2)
 			{
@@ -136,11 +204,10 @@ static int log2rtcm(const char *fname)
 					fRTCM = set_output_file(fname, timestr);
 				}
 				char* tempBuff = new char[slen];
-				tempBuff[0] = buf.dat[buf.nloc[1]];
-				if (fread((char*)tempBuff+1, sizeof(char), slen-1, fLOG) == (slen-1))
+				if (fread((char*)tempBuff, sizeof(char), slen, fLOG) == slen)
 				{
 					rtcm->time_s = buf.time;
-					for (i = 0; i < slen - 1; ++i)
+					for (i = 0; i < slen - 2; ++i)
 					{
 						int ret1 = input_rtcm3(rtcm, tempBuff[i]);
 						if (rtcm->nbyte == 0 && rtcm->len > 0)
@@ -175,70 +242,21 @@ static int log2rtcm(const char *fname)
 							++numofepoch;
 							double dt = timediff(buf.time, rtcm->time);
 
-							if (dt > 0)
-							{
-
-								if (dt >= 3.0)
-									numofepoch_3000++;
-
-								//printf("%s,%10.4f,%3i\n", time_str(buf.time, 3), dt, rtcm->obs.n);
-								vDt.push_back(dt);
-							}
+							//printf("%s,%10.4f,%3i\n", time_str(buf.time, 3), dt, rtcm->obs.n);
+							vDt.push_back(dt);
 						}
 					}
 					if (fRTCM) fwrite(tempBuff, sizeof(char), slen - 2, fRTCM);
 				}
-				buf.nlen = 0; /* reset the counter */
 				delete[]tempBuff;
 			}
-			buf.dat[buf.nloc[3]] = '\0';
+			buf.nlen = 0; /* reset the counter */
+			memset(buf.dat, 0, sizeof(buf.dat)); /* reset buffer */
 		}
 	}
-	double dt_avg = 0;
-	double dt_68 = 0;
-	double dt_95 = 0;
-	double dt_99 = 0;
-	if (vDt.size() > 0)
-	{
-		std::sort(vDt.begin(), vDt.end());
-		for (i = 0; i < (int)vDt.size(); ++i)
-			dt_avg += vDt[i];
 
-		dt_avg /= (int)vDt.size();
-		int loc68 = (int)(vDt.size() * 0.6827);
-		int loc95 = (int)(vDt.size() * 0.9545);
-		int loc99 = (int)(vDt.size() * 0.9973);
+	output_status(vDt, mGAP, numofmsg, numofcrc, numofepoch, stime, etime, v1, v2, v3, v4, fname, is_time);
 
-		dt_68 = vDt[loc68];
-		dt_95 = vDt[loc95];
-		dt_99 = vDt[loc99];
-	}
-	FILE* fSUM = fopen("sum.txt", "r");
-	char buffer[255] = { 0 };
-	int line = 0;
-	while (fSUM && fgets(buffer, sizeof(buffer), fSUM))
-	{
-		char* temp = strrchr(buffer, '\n');
-		if (temp) temp[0] = '\0';
-		if (strlen(buffer) > 0)
-			++line;
-	}
-	if (fSUM) fclose(fSUM);
-	fSUM = fopen("sum.txt", "a");
-	if (!line)
-	{
-		fprintf(fSUM, "filename,numofmsg,numofcrc_failure,numofepoch,numofepoch_3s,dt_avg,dt_68,dt_95,dt_99,dt_min,dt_max,dt_count,time_duration,data_interval_counts\n");
-	}
-	printf("%s,%6i,%6i,%6i,%6i,%10.4f,%10.4f,%10.4f,%10.4f,%10.4f,%10.4f,%6i,%10.4f,%7.2f,%i,%i,%i", fname, numofmsg, numofcrc, numofepoch, numofepoch_3000, dt_avg, dt_68, dt_95, dt_99, vDt.front(), vDt.back(), (int)vDt.size(), timediff(etime, stime), v1 / 3600.0 / 24.0, -v2, v3, v4);
-	if (fSUM) fprintf(fSUM, "%s,%6i,%6i,%6i,%6i,%10.4f,%10.4f,%10.4f,%10.4f,%10.4f,%10.4f,%6i,%10.4f,%7.2f,%i,%i,%i", fname, numofmsg, numofcrc, numofepoch, numofepoch_3000, dt_avg, dt_68, dt_95, dt_99, vDt.front(), vDt.back(), (int)vDt.size(), timediff(etime, stime), v1 / 3600.0 / 24.0, -v2, v3, v4);
-	for (std::map<int,int>::iterator pGAP=mGAP.begin();pGAP!=mGAP.end();++pGAP)
-	{
-		if (fSUM) fprintf(fSUM,",%i(%i)", pGAP->first, pGAP->second);
-		printf(",%i(%i)", pGAP->first, pGAP->second);
-	}
-	printf("\n");
-	if (fSUM) fprintf(fSUM, "\n");
-	if (fSUM) fclose(fSUM);
 	if (fLOG) fclose(fLOG);
 	if (fRTCM) fclose(fRTCM);
 
@@ -248,7 +266,7 @@ static int log2rtcm(const char *fname)
 	return ret;
 }
 
-static int procrtcm(const char* fname)
+static int procrtcm(const char* fname, int is_time)
 {
 	int ret = 0;
 	FILE* fLOG = fopen(fname, "rb");
@@ -333,51 +351,9 @@ static int procrtcm(const char* fname)
 			++numofepoch;
 		}
 	}
-	double dt_avg = 0;
-	double dt_68 = 0;
-	double dt_95 = 0;
-	double dt_99 = 0;
-	if (vDt.size() > 0)
-	{
-		std::sort(vDt.begin(), vDt.end());
-		for (i = 0; i < (int)vDt.size(); ++i)
-			dt_avg += vDt[i];
 
-		dt_avg /= (int)vDt.size();
-		int loc68 = (int)(vDt.size() * 0.6827);
-		int loc95 = (int)(vDt.size() * 0.9545);
-		int loc99 = (int)(vDt.size() * 0.9973);
+	output_status(vDt, mGAP, numofmsg, numofcrc, numofepoch, stime, etime, v1, v2, v3, v4, fname, is_time);
 
-		dt_68 = vDt[loc68];
-		dt_95 = vDt[loc95];
-		dt_99 = vDt[loc99];
-	}
-	FILE* fSUM = fopen("sum.txt", "r");
-	char buffer[255] = { 0 };
-	int line = 0;
-	while (fSUM && fgets(buffer, sizeof(buffer), fSUM))
-	{
-		char* temp = strrchr(buffer, '\n');
-		if (temp) temp[0] = '\0';
-		if (strlen(buffer) > 0)
-			++line;
-	}
-	if (fSUM) fclose(fSUM);
-	fSUM = fopen("sum.txt", "a");
-	if (!line)
-	{
-		fprintf(fSUM, "filename,numofmsg,numofcrc_failure,numofepoch,numofepoch_3s,dt_avg,dt_68,dt_95,dt_99,dt_min,dt_max,dt_count,time_duration,v1,v2,v3,v4,data_interval_counts\n");
-	}
-	printf("%s,%6i,%6i,%6i,%6i,%10.4f,%10.4f,%10.4f,%10.4f,%10.4f,%10.4f,%6i,%10.4f,%7.2f,%i,%i,%i", fname, numofmsg, numofcrc, numofepoch, numofepoch_3000, dt_avg, dt_68, dt_95, dt_99, vDt.front(), vDt.back(), (int)vDt.size(), timediff(etime, stime), v1/3600.0/24.0, -v2, v3, v4);
-	if (fSUM) fprintf(fSUM, "%s,%6i,%6i,%6i,%6i,%10.4f,%10.4f,%10.4f,%10.4f,%10.4f,%10.4f,%6i,%10.4f,%7.2f,%i,%i,%i", fname, numofmsg, numofcrc, numofepoch, numofepoch_3000, dt_avg, dt_68, dt_95, dt_99, vDt.front(), vDt.back(), (int)vDt.size(), timediff(etime, stime), v1 / 3600.0 / 24.0, -v2, v3, v4);
-	for (std::map<int, int>::iterator pGAP = mGAP.begin(); pGAP != mGAP.end(); ++pGAP)
-	{
-		if (fSUM) fprintf(fSUM, ",%i(%i)", pGAP->first, pGAP->second);
-		printf(",%i(%i)", pGAP->first, pGAP->second);
-	}
-	printf("\n");
-	if (fSUM) fprintf(fSUM, "\n");
-	if (fSUM) fclose(fSUM);
 	if (fLOG) fclose(fLOG);
 	if (fRTCM) fclose(fRTCM);
 
@@ -389,15 +365,31 @@ static int procrtcm(const char* fname)
 
 int main(int argc, char* argv[])
 {
+	int is_rtcm = 0;
+	int is_time = 1;
+	int is_geod = 1;
+	int is_outp = 0;
+	const char* temp = nullptr;
+	for (int i = 1; i < argc; ++i)
+	{
+		if (strstr(argv[i], "rtcm") && (temp = strrchr(argv[i], '=')))
+			is_rtcm = atoi(temp + 1);
+		if (strstr(argv[i], "time") && (temp = strrchr(argv[i], '=')))
+			is_time = atoi(temp + 1);
+		if (strstr(argv[i], "geod") && (temp = strrchr(argv[i], '=')))
+			is_geod = atoi(temp + 1);
+		if (strstr(argv[i], "outp") && (temp = strrchr(argv[i], '=')))
+			is_outp = atoi(temp + 1);
+	}
 	if (argc < 2)
 	{
 	}
-	else if (argc < 3)
+	else 
 	{
-		log2rtcm(argv[1]);
+		if (is_rtcm)
+			procrtcm(argv[1], is_time);
+		else
+			log2rtcm(argv[1], is_geod, is_outp, is_time);
 	}
-	else if (strstr(argv[1], "rtcm"))
-	{
-		procrtcm(argv[2]);
-	}
+	return 0;
 }
