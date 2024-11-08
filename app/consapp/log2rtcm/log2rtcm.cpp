@@ -191,18 +191,9 @@ static int log2rtcm(const char *fname, int is_geod, int is_out, int is_time)
 		{
 			int slen = buf.slen + 2; /* \r\n */
 			int ret = 0;
-			buf.dat[buf.nloc[buf.nseg-1]-1] = '\0';
-			//printf("%s,%s\n", time_str(buf.time, 2), (char*)buf.dat);
 			if (slen > 2)
 			{
-				if (!fRTCM)
-				{
-					double ep[6] = { 0 };
-					time2epoch(buf.time, ep);
-					char timestr[255] = { 0 };
-					sprintf(timestr, "%04i-%02i-%02i-%02i-%02i-%02i.rtcm3", (int)ep[0], (int)ep[1], (int)ep[2], (int)ep[3], (int)ep[4], (int)ep[5]);
-					fRTCM = set_output_file(fname, timestr);
-				}
+				if (!fRTCM) fRTCM = set_output_file(fname, "log.rtcm");
 				char* tempBuff = new char[slen];
 				if (fread((char*)tempBuff, sizeof(char), slen, fLOG) == slen)
 				{
@@ -242,7 +233,6 @@ static int log2rtcm(const char *fname, int is_geod, int is_out, int is_time)
 							++numofepoch;
 							double dt = timediff(buf.time, rtcm->time);
 
-							//printf("%s,%10.4f,%3i\n", time_str(buf.time, 3), dt, rtcm->obs.n);
 							vDt.push_back(dt);
 						}
 					}
@@ -250,8 +240,7 @@ static int log2rtcm(const char *fname, int is_geod, int is_out, int is_time)
 				}
 				delete[]tempBuff;
 			}
-			buf.nlen = 0; /* reset the counter */
-			memset(buf.dat, 0, sizeof(buf.dat)); /* reset buffer */
+			memset(&buf, 0, sizeof(buf_t)); /* reset buffer */
 		}
 	}
 
@@ -289,7 +278,6 @@ static int procrtcm(const char* fname, int is_time)
 	int v2 = 0;
 	int v3 = 0;
 	int v4 = 0;
-	int numofepoch_3000 = 0;
 	while (fLOG && !feof(fLOG) && (data = fgetc(fLOG)) != EOF)
 	{
 		int ret1 = input_rtcm3(rtcm, data);
@@ -341,9 +329,6 @@ static int procrtcm(const char* fname, int is_time)
 
 				if (dt > 0)
 				{
-					if (dt >= 3.0) numofepoch_3000++;
-					//printf("%s,%10.4f,%3i\n", time_str(buf.time, 3), dt, rtcm->obs.n);
-
 					vDt.push_back(dt);
 				}
 			}
@@ -365,27 +350,28 @@ static int procrtcm(const char* fname, int is_time)
 
 int main(int argc, char* argv[])
 {
-	int is_rtcm = 0;
-	int is_time = 1;
-	int is_geod = 1;
-	int is_outp = 0;
-	const char* temp = nullptr;
-	for (int i = 1; i < argc; ++i)
-	{
-		if (strstr(argv[i], "rtcm") && (temp = strrchr(argv[i], '=')))
-			is_rtcm = atoi(temp + 1);
-		if (strstr(argv[i], "time") && (temp = strrchr(argv[i], '=')))
-			is_time = atoi(temp + 1);
-		if (strstr(argv[i], "geod") && (temp = strrchr(argv[i], '=')))
-			is_geod = atoi(temp + 1);
-		if (strstr(argv[i], "outp") && (temp = strrchr(argv[i], '=')))
-			is_outp = atoi(temp + 1);
-	}
 	if (argc < 2)
 	{
+		printf("log2rtcm file");
 	}
-	else 
+	else
 	{
+		int is_rtcm = 0;
+		int is_time = 1;
+		int is_geod = 1;
+		int is_outp = 1;
+		const char* temp = nullptr;
+		for (int i = 2; i < argc; ++i)
+		{
+			if (strstr(argv[i], "rtcm") && (temp = strrchr(argv[i], '=')))
+				is_rtcm = atoi(temp + 1);
+			if (strstr(argv[i], "time") && (temp = strrchr(argv[i], '=')))
+				is_time = atoi(temp + 1);
+			if (strstr(argv[i], "geod") && (temp = strrchr(argv[i], '=')))
+				is_geod = atoi(temp + 1);
+			if (strstr(argv[i], "outp") && (temp = strrchr(argv[i], '=')))
+				is_outp = atoi(temp + 1);
+		}
 		if (is_rtcm)
 			procrtcm(argv[1], is_time);
 		else

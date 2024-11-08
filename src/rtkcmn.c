@@ -3365,9 +3365,11 @@ static int mkdir_r(const char *dir)
         }
         else FindClose(h);
     }
+#if 0
     if (CreateDirectory(dir,NULL)||GetLastError()==ERROR_ALREADY_EXISTS) {
         return 1;
     }
+#endif
 #else
     FILE *fp;
     

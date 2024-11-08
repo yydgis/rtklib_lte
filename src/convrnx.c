@@ -760,6 +760,8 @@ static int scan_4054_1(const char* fname,int scan)
     /* store the data gap info */
     int maxg = 50;
     int numg = 0;
+    double dt_68=0;
+    double dt_95=0;
     int* dgap = malloc(sizeof(int) * maxg);
     int* igap = malloc(sizeof(int) * maxg);
     /* start and end time */
@@ -1051,15 +1053,23 @@ static int scan_4054_1(const char* fname,int scan)
         loc95 = (int)(numt * 0.95);
         if (loc68 >= numt) loc68 = numt - 1;
         if (loc95 >= numt) loc95 = numt - 1;
-        temp = strrchr(filename, '-');
-        /*printf("%10.4f,%10.4f,%6i,%6i,%6i,%6i,%6i,%7.3f,%7.3f,%6i,%7.3f,%4i,%2i,%2i,%2i,%12s,%s,%s\n", dts[loc68], dts[loc95], numt, numofsync, numofepoch, numofmisorder, numofexp, sample_interval, numofexp > 0 ? numofsync * 100.0 / numofexp : 0, ncrc, nmsg > 0 ? ncrc * 100.0 / nmsg : 0, (int)ep[0], (int)ep[1], (int)ep[2], (int)ep[3], temp ? temp + 1 : filename, rec, ver);*/
-        fOUT = fopen(outfilename, "w");
-        if (fOUT)
-        {
-            fprintf(fOUT, "time[s] 68%c,time[s] 95%c,number of time delay count, number of sync flag, number of epoch, number of misorder epoch, number of expected epoch, sample interval, data availability, number of crc failure, crc failure rate, year, month, day, hour, station\n", '%', '%');
-            fprintf(fOUT, "%10.4f,%10.4f,%6i,%6i,%6i,%6i,%6i,%7.3f,%7.3f,%6i,%7.3f,%4i,%2i,%2i,%2i,%12s,%s,%s\n", dts[loc68], dts[loc95], numt, numofsync, numofepoch, numofmisorder, numofexp, sample_interval, numofexp > 0 ? numofsync * 100.0 / numofexp : 0, ncrc, nmsg > 0 ? ncrc * 100.0 / nmsg : 0, (int)ep[0], (int)ep[1], (int)ep[2], (int)ep[3], temp ? temp+1 : filename, rec, ver);
-            fclose(fOUT);
-        }
+        dt_68=dts[loc68];
+        dt_95=dts[loc95];
+    }
+    /*printf("%10.4f,%10.4f,%6i,%6i,%6i,%6i,%6i,%7.3f,%7.3f,%6i,%7.3f,%4i,%2i,%2i,%2i,%12s,%s,%s\n", dts[loc68], dts[loc95], numt, numofsync, numofepoch, numofmisorder, numofexp, sample_interval, numofexp > 0 ? numofsync * 100.0 / numofexp : 0, ncrc, nmsg > 0 ? ncrc * 100.0 / nmsg : 0, (int)ep[0], (int)ep[1], (int)ep[2], (int)ep[3], temp ? temp + 1 : filename, rec, ver);*/
+    temp = strrchr(filename, '-');
+    fOUT = fopen(outfilename, "w");
+    if (fOUT)
+    {
+        fprintf(fOUT, "time[s] 68%c,time[s] 95%c,number of time delay count, number of sync flag, number of epoch, number of misorder epoch, number of expected epoch, sample interval, data availability, number of crc failure, crc failure rate, year, month, day, hour, station\n", '%', '%');
+        fprintf(fOUT, "%10.4f,%10.4f,%6i,%6i,%6i,%6i,%6i,%7.3f,%7.3f,%6i,%7.3f,%4i,%2i,%2i,%2i,%12s,%s,%s\n", dt_68, dt_95, numt, numofsync, numofepoch, numofmisorder, numofexp, sample_interval, numofexp > 0 ? numofsync * 100.0 / numofexp : 0, ncrc, nmsg > 0 ? ncrc * 100.0 / nmsg : 0, (int)ep[0], (int)ep[1], (int)ep[2], (int)ep[3], temp ? temp+1 : filename, rec, ver);
+        fclose(fOUT);
+    }
+    fOUT = fopen("sum-rtcm.csv", "a");
+    if (fOUT)
+    {
+        fprintf(fOUT, "%10.4f,%10.4f,%6i,%6i,%6i,%6i,%6i,%7.3f,%7.3f,%6i,%7.3f,%4i,%2i,%2i,%2i,%12s,%s,%s,%s\n", dt_68, dt_95, numt, numofsync, numofepoch, numofmisorder, numofexp, sample_interval, numofexp > 0 ? numofsync * 100.0 / numofexp : 0, ncrc, nmsg > 0 ? ncrc * 100.0 / nmsg : 0, (int)ep[0], (int)ep[1], (int)ep[2], (int)ep[3], temp ? temp+1 : filename, rec, ver, filename);
+        fclose(fOUT);
     }
     if (dts) free(dts); dts=NULL;
     if (dgap) free(dgap); dgap = NULL;
