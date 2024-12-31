@@ -191,12 +191,6 @@ const uint8_t ssr_sig_sbs[32]={
 static const double ssrudint[16]={
     1,2,5,10,15,30,60,120,240,300,600,900,1800,3600,7200,10800
 };
-/* get sign-magnitude bits ---------------------------------------------------*/
-static double getbitg(const uint8_t *buff, int pos, int len)
-{
-    double value=getbitu(buff,pos+1,len-1);
-    return getbitu(buff,pos,1)?-value:value;
-}
 /* adjust weekly rollover of GPS time ----------------------------------------*/
 static void adjweek(rtcm_t *rtcm, double tow)
 {

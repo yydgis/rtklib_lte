@@ -106,12 +106,14 @@ static int32_t merge_two_s(int32_t a, uint32_t b, int n)
 {
     return (int32_t)((a<<n)+b);
 }
+#if 0
 /* get sign-magnitude bits ---------------------------------------------------*/
 static double getbitg(const uint8_t *buff, int pos, int len)
 {
     double value=getbitu(buff,pos+1,len-1);
     return getbitu(buff,pos,1)?-value:value;
 }
+#endif
 /* decode NavIC/IRNSS ephemeris ----------------------------------------------*/
 static int decode_irn_eph(const uint8_t *buff, eph_t *eph)
 {

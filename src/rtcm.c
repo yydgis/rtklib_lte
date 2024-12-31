@@ -135,9 +135,9 @@ extern void free_rtcm(rtcm_t *rtcm)
     trace(3,"free_rtcm:\n");
     
     /* free memory for observation and ephemeris buffer */
-    free(rtcm->obs.data); rtcm->obs.data=NULL; rtcm->obs.n=0;
-    free(rtcm->nav.eph ); rtcm->nav.eph =NULL; rtcm->nav.n=0;
-    free(rtcm->nav.geph); rtcm->nav.geph=NULL; rtcm->nav.ng=0;
+    if (rtcm->obs.data) free(rtcm->obs.data); rtcm->obs.data=NULL; rtcm->obs.n=0;
+    if (rtcm->nav.eph ) free(rtcm->nav.eph ); rtcm->nav.eph =NULL; rtcm->nav.n=0;
+    if (rtcm->nav.geph) free(rtcm->nav.geph); rtcm->nav.geph=NULL; rtcm->nav.ng=0;
 }
 /* input RTCM 2 message from stream --------------------------------------------
 * fetch next RTCM 2 message and input a message from byte stream

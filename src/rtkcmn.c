@@ -855,6 +855,12 @@ extern int32_t getbits(const uint8_t *buff, int pos, int len)
     if (len<=0||32<=len||!(bits&(1u<<(len-1)))) return (int32_t)bits;
     return (int32_t)(bits|(~0u<<len)); /* extend sign */
 }
+/* get sign-magnitude bits ---------------------------------------------------*/
+extern double getbitg(const uint8_t *buff, int pos, int len)
+{
+    double value=getbitu(buff,pos+1,len-1);
+    return getbitu(buff,pos,1)?-value:value;
+}
 /* set unsigned/signed bits ----------------------------------------------------
 * set unsigned/signed bits to byte data
 * args   : uint8_t *buff IO byte data

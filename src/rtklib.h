@@ -1548,6 +1548,7 @@ EXPORT int tle_pos(gtime_t time, const char *name, const char *satno,
 /* receiver raw data functions -----------------------------------------------*/
 EXPORT uint32_t getbitu(const uint8_t *buff, int pos, int len);
 EXPORT int32_t  getbits(const uint8_t *buff, int pos, int len);
+EXPORT double   getbitg(const uint8_t *buff, int pos, int len);
 EXPORT void setbitu(uint8_t *buff, int pos, int len, uint32_t data);
 EXPORT void setbits(uint8_t *buff, int pos, int len, int32_t  data);
 EXPORT double getbits_38(const uint8_t *buff, int pos);
