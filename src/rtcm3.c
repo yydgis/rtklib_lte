@@ -160,6 +160,25 @@ const char *msm_sig_irn[32]={
     ""  ,""  ,""  ,""  ,""  ,""  ,""  ,""  ,""  ,"5A",""  ,""  ,
     ""  ,""  ,""  ,""  ,""  ,""  ,""  ,""
 };
+/* rtcm signal to rinex obs type */
+extern uint8_t rtcm2code(int sys, uint8_t sig)
+{
+    /* id to signal */
+    int code = CODE_NONE;
+    if (sig>0&&sig<=32) {
+        switch (sys) {
+            case SYS_GPS: code=obs2code(msm_sig_gps[sig-1]); break;
+            case SYS_GLO: code=obs2code(msm_sig_glo[sig-1]); break;
+            case SYS_GAL: code=obs2code(msm_sig_gal[sig-1]); break;
+            case SYS_QZS: code=obs2code(msm_sig_qzs[sig-1]); break;
+            case SYS_SBS: code=obs2code(msm_sig_sbs[sig-1]); break;
+            case SYS_CMP: code=obs2code(msm_sig_cmp[sig-1]); break;
+            case SYS_IRN: code=obs2code(msm_sig_irn[sig-1]); break;
+            default: break;
+        }
+    }
+    return code;
+}
 /* SSR signal and tracking mode IDs ------------------------------------------*/
 const uint8_t ssr_sig_gps[32]={
     CODE_L1C,CODE_L1P,CODE_L1W,CODE_L1S,CODE_L1L,CODE_L2C,CODE_L2D,CODE_L2S,
