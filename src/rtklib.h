@@ -1527,6 +1527,10 @@ EXPORT int  peph2pos(gtime_t time, int sat, const nav_t *nav, int opt,
                      double *rs, double *dts, double *var);
 EXPORT void satantoff(gtime_t time, const double *rs, int sat, const nav_t *nav,
                       double *dant);
+EXPORT int ephclk(gtime_t time, gtime_t teph, int sat, const nav_t *nav,
+                  double *dts);
+EXPORT int ephpos(gtime_t time, gtime_t teph, int sat, const nav_t *nav,
+                  int iode, double *rs, double *dts, double *var, int *svh);
 EXPORT int  satpos(gtime_t time, gtime_t teph, int sat, int ephopt,
                    const nav_t *nav, double *rs, double *dts, double *var,
                    int *svh);

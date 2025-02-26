@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{dd8e92e6-29e8-446c-80c8-e3e9929d252b}</ProjectGuid>
+    <ProjectGuid>{B01EAC58-974C-48CE-AD8C-292C5EC4A526}</ProjectGuid>
     <RootNamespace>log2rtcm</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
