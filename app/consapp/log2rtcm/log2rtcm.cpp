@@ -802,6 +802,7 @@ static int proc_epoch_data(std::vector<epoch_t>& vEpoch, brdc_t &brdc, nav_t *na
 			double azel[2] = { 0 };
 			ecef2pos(rr, pos);
 			std::vector<int> mSatElev0, mSatElev5, mSatElev7, mSatElev10;
+			std::vector<int> mSatElev0_, mSatElev5_, mSatElev7_, mSatElev10_;
 			int sat0 = 0, sat5 = 0, sat7 = 0, sat10 = 0, sat15 = 0;
 			for (std::map<int, spvt_t>::iterator pSatPVT = mSatPVT.begin(); pSatPVT != mSatPVT.end(); ++pSatPVT)
 			{
@@ -823,34 +824,95 @@ static int proc_epoch_data(std::vector<epoch_t>& vEpoch, brdc_t &brdc, nav_t *na
 						if (azel[1] >= (0.0 * D2R))
 						{
 							mSatElev0.push_back(sat);
-							if (pobs != pEpoch->obsd.end()) ++sat0;
+							if (pobs != pEpoch->obsd.end()) ++sat0; else mSatElev0_.push_back(sat);
 						}
 						if (azel[1] >= (5.0 * D2R))
 						{
 							mSatElev5.push_back(sat);
-							if (pobs != pEpoch->obsd.end()) ++sat5;
+							if (pobs != pEpoch->obsd.end()) ++sat5; else mSatElev5_.push_back(sat);
 						}
 						if (azel[1] >= (7.0 * D2R))
 						{
 							mSatElev7.push_back(sat);
-							if (pobs != pEpoch->obsd.end()) ++sat7;
+							if (pobs != pEpoch->obsd.end()) ++sat7; else mSatElev7_.push_back(sat);
 						}
 						if (azel[1] >= (10.0 * D2R))
 						{
 							mSatElev10.push_back(sat);
-							if (pobs != pEpoch->obsd.end()) ++sat10;
+							if (pobs != pEpoch->obsd.end()) ++sat10; else mSatElev10_.push_back(sat);
 						}
 					}
 				}
 			}
 
-			if (fSAT) fprintf(fSAT, "%04i,%11.4f,%02i,%02i,%7.4f,%3i,%3i,%3i,%3i,%3i,%3i,%3i,%3i,%8.4f,%8.4f,%8.4f,%8.4f\n", wk, ws, (int)ep[3], (int)ep[4], ep[5], (int)mSatElev0.size(), sat0, (int)mSatElev5.size(), sat5, (int)mSatElev7.size(), sat7, (int)mSatElev10.size(), sat10
+			if (fSAT) fprintf(fSAT, "%04i,%11.4f,%02i,%02i,%7.4f,%3i,%3i,%3i,%3i,%3i,%3i,%3i,%3i,%8.4f,%8.4f,%8.4f,%8.4f", wk, ws, (int)ep[3], (int)ep[4], ep[5], (int)mSatElev0.size(), sat0, (int)mSatElev5.size(), sat5, (int)mSatElev7.size(), sat7, (int)mSatElev10.size(), sat10
 				, (int)mSatElev0.size() > 0 ? sat0 * 100.0 / (int)mSatElev0.size() : 0
 				, (int)mSatElev5.size() > 0 ? sat5 * 100.0 / (int)mSatElev5.size() : 0
 				, (int)mSatElev7.size() > 0 ? sat7 * 100.0 / (int)mSatElev7.size() : 0
 				, (int)mSatElev10.size() > 0 ? sat10 * 100.0 / (int)mSatElev10.size() : 0
 			);
 
+			if (fSAT) fprintf(fSAT, ",");
+			for (int i = 0; i < (int)mSatElev0_.size(); ++i)
+			{
+				int sat = mSatElev0_[i];
+				int prn = 0;
+				int sys = satsys(sat, &prn);
+				if (i == 0)
+				{
+					if (fSAT) fprintf(fSAT, "%c%02i", sys2char(sys, prn), prn);
+				}
+				else
+				{
+					if (fSAT) fprintf(fSAT, ";%c%02i", sys2char(sys, prn), prn);
+				}
+			}
+			if (fSAT) fprintf(fSAT, ",");
+			for (int i = 0; i < (int)mSatElev5_.size(); ++i)
+			{
+				int sat = mSatElev5_[i];
+				int prn = 0;
+				int sys = satsys(sat, &prn);
+				if (i == 0)
+				{
+					if (fSAT) fprintf(fSAT, "%c%02i", sys2char(sys, prn), prn);
+				}
+				else
+				{
+					if (fSAT) fprintf(fSAT, ";%c%02i", sys2char(sys, prn), prn);
+				}
+			}
+			if (fSAT) fprintf(fSAT, ",");
+			for (int i = 0; i < (int)mSatElev7_.size(); ++i)
+			{
+				int sat = mSatElev7_[i];
+				int prn = 0;
+				int sys = satsys(sat, &prn);
+				if (i == 0)
+				{
+					if (fSAT) fprintf(fSAT, "%c%02i", sys2char(sys, prn), prn);
+				}
+				else
+				{
+					if (fSAT) fprintf(fSAT, ";%c%02i", sys2char(sys, prn), prn);
+				}
+			}
+			if (fSAT) fprintf(fSAT, ",");
+			for (int i = 0; i < (int)mSatElev10_.size(); ++i)
+			{
+				int sat = mSatElev10_[i];
+				int prn = 0;
+				int sys = satsys(sat, &prn);
+				if (i == 0)
+				{
+					if (fSAT) fprintf(fSAT, "%c%02i", sys2char(sys, prn), prn);
+				}
+				else
+				{
+					if (fSAT) fprintf(fSAT, ";%c%02i", sys2char(sys, prn), prn);
+				}
+			}
+			if (fSAT) fprintf(fSAT, "\n");
 			if ((int)mSatElev0.size() > 0) rate0.push_back(sat0 * 100.0 / (int)mSatElev0.size());
 			if ((int)mSatElev5.size() > 0) rate5.push_back(sat5 * 100.0 / (int)mSatElev5.size());
 			if ((int)mSatElev7.size() > 0) rate7.push_back(sat7 * 100.0 / (int)mSatElev7.size());
@@ -886,6 +948,7 @@ static int log2rtcm(const char *fname, int flag, std::string brdcfname)
 	gtime_t etime = { 0 };
 	int numofepoch = 0;
 	std::map<int, int> mGAP;
+	int numofbyte = 0;
 	int numofcrc = 0;
 	int numofmsg = 0;
 	int v1 = 0;
@@ -923,6 +986,7 @@ static int log2rtcm(const char *fname, int flag, std::string brdcfname)
 		}
 	}
 	/* read log file */
+	numofcrc = 0;
 	while (fLOG && !feof(fLOG))
 	{
 		ret = read_buff_from_file(fLOG, &buf, flag & (1 << 6) ? 3 : 2);
@@ -941,13 +1005,18 @@ static int log2rtcm(const char *fname, int flag, std::string brdcfname)
 					{
 						int ret1 = input_rtcm3(rtcm, tempBuff[i]);
 						if (ret1 == 2) brdc.add_nav_eph(rtcm);
+						numofbyte++;
 						if (rtcm->nbyte == 0 && rtcm->len > 0)
 						{
-							++numofmsg;
 							if (rtk_crc24q(rtcm->buff, rtcm->len) != getbitu(rtcm->buff, rtcm->len * 8, 24))
 							{
-								++numofcrc;
+								numofcrc++;
 							}
+							else
+							{
+								++numofmsg;
+							}
+							rtcm->len = 0;
 							int vers = getbitu(rtcm->buff, 24 + 12, 3);
 							int stype = getbitu(rtcm->buff, 24 + 12 + 3, 9);
 							if (stype == 300)
@@ -1047,11 +1116,15 @@ static int procrtcm(const char* fname, int flag, std::string brdcfname, int year
 		if (ret1 == 2) brdc.add_nav_eph(rtcm);
 		if (rtcm->nbyte == 0 && rtcm->len > 0)
 		{
-			++numofmsg;
 			if (rtk_crc24q(rtcm->buff, rtcm->len) != getbitu(rtcm->buff, rtcm->len * 8, 24))
 			{
 				++numofcrc;
 			}
+			else
+			{
+				++numofmsg;
+			}
+			rtcm->len = 0;
 			int type = getbitu(rtcm->buff, 24, 12);
 			if (type == 4054)
 			{
@@ -1144,6 +1217,7 @@ int main(int argc, char* argv[])
 		day = gmtm->tm_mday;
 		
 		flag |= 1 << 0;	/* set output flag as default */
+		flag |= 1 << 1;	/* set Health flag as default */
 		flag |= 1 << 5;	/* set time flag as default */
 		flag |= 1 << 6;	/* set geod flag as default */
 
