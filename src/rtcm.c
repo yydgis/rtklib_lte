@@ -89,7 +89,7 @@ extern int init_rtcm(rtcm_t *rtcm)
         rtcm->ssr[i]=ssr0;
     }
     rtcm->msg[0]=rtcm->msgtype[0]=rtcm->opt[0]='\0';
-    for (i=0;i<6;i++) rtcm->msmtype[i][0]='\0';
+    for (i=0;i<8;i++) rtcm->msmtype[i][0]='\0';
     rtcm->obsflag=rtcm->ephsat=0;
     for (i=0;i<MAXSAT;i++) for (j=0;j<NFREQ+NEXOBS;j++) {
         rtcm->cp[i][j]=0.0;

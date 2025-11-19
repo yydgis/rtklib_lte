@@ -260,7 +260,7 @@ static char *obscodes[]={       /* observation code strings */
     "5B","5C","9A","9B","9C", "9X","1D","5D","5P","5Z", /* 50-59 */
     "6E","7D","7P","7Z","8D", "8P","4A","4B","4X",""    /* 60-69 */
 };
-static char codepris[7][MAXFREQ][16]={  /* code priority for each freq-index */
+static char codepris[8][MAXFREQ][16]={  /* code priority for each freq-index */
    /*    0         1          2          3         4         5     */
     {"CPYWMNSL","PYWCMNDLSX","IQX"     ,""       ,""       ,""      ,""}, /* GPS */
     {"CPABX"   ,"PCABX"     ,"IQX"     ,""       ,""       ,""      ,""}, /* GLO */
@@ -268,7 +268,8 @@ static char codepris[7][MAXFREQ][16]={  /* code priority for each freq-index */
     {"CLSXZ"   ,"LSX"       ,"IQXDPZ"  ,"LSXEZ"  ,""       ,""      ,""}, /* QZS */
     {"C"       ,"IQX"       ,""        ,""       ,""       ,""      ,""}, /* SBS */
     {"IQXDPAN" ,"IQXDPZ"    ,"DPX"     ,"IQXA"   ,"DPX"    ,""      ,""}, /* BDS */
-    {"ABCX"    ,"ABCX"      ,""        ,""       ,""       ,""      ,""}  /* IRN */
+    {"ABCX"    ,"ABCX"      ,""        ,""       ,""       ,""      ,""}, /* IRN */
+    {"X"       ,"X"         ,""        ,""       ,""       ,""      ,""}  /* LEO/XONA */
 };
 static fatalfunc_t *fatalfunc=NULL; /* fatal callback function */
 
@@ -487,7 +488,7 @@ extern int satid2no(const char *id)
         case 'J': sys=SYS_QZS; prn+=MINPRNQZS-1; break;
         case 'C': sys=SYS_CMP; prn+=MINPRNCMP-1; break;
         case 'I': sys=SYS_IRN; prn+=MINPRNIRN-1; break;
-        case 'L': sys=SYS_LEO; prn+=MINPRNLEO-1; break;
+        case 'X': sys=SYS_LEO; prn+=MINPRNLEO-1; break;
         case 'S': sys=SYS_SBS; prn+=100; break;
         default: return 0;
     }
@@ -509,7 +510,7 @@ extern void satno2id(int sat, char *id)
         case SYS_QZS: sprintf(id,"J%02d",prn-MINPRNQZS+1); return;
         case SYS_CMP: sprintf(id,"C%02d",prn-MINPRNCMP+1); return;
         case SYS_IRN: sprintf(id,"I%02d",prn-MINPRNIRN+1); return;
-        case SYS_LEO: sprintf(id,"L%02d",prn-MINPRNLEO+1); return;
+        case SYS_LEO: sprintf(id,"X%02d",prn-MINPRNLEO+1); return;
         case SYS_SBS: sprintf(id,"%03d" ,prn); return;
     }
     strcpy(id,"");
@@ -689,6 +690,17 @@ static int code2freq_BDS(uint8_t code, double *freq)
     }
     return -1;
 }
+/* XONA LEO obs code to frequency ------------------------------------------------*/
+static int code2freq_LEO(uint8_t code, double *freq)
+{
+    char *obs=code2obs(code);
+    
+    switch (obs[0]) {
+        case '1': *freq=FREQX1; return 0; /* X1 */
+        case '5': *freq=FREQX5; return 1; /* X5 */
+    }
+    return -1;
+}
 /* NavIC obs code to frequency -----------------------------------------------*/
 static int code2freq_IRN(uint8_t code, double *freq)
 {
@@ -712,6 +724,7 @@ static int code2freq_IRN(uint8_t code, double *freq)
 *            Galileo   E1    E5b   E5a   E6   E5ab
 *            QZSS      L1    L2    L5    L6     - 
 *            SBAS      L1     -    L5     -     -
+*            XONA      X1     -    X5     -     -
 *            BDS       B1    B2    B2a   B3   B2ab (B1=B1I,B1C,B2=B2I,B2b)
 *            NavIC     L5     S     -     -     - 
 *-----------------------------------------------------------------------------*/
@@ -727,6 +740,7 @@ extern int code2idx(int sys, uint8_t code)
         case SYS_SBS: return code2freq_SBS(code,&freq);
         case SYS_CMP: return code2freq_BDS(code,&freq);
         case SYS_IRN: return code2freq_IRN(code,&freq);
+        case SYS_LEO: return code2freq_LEO(code,&freq);
     }
     return -1;
 }
@@ -749,6 +763,7 @@ extern double code2freq(int sys, uint8_t code, int fcn)
         case SYS_SBS: (void)code2freq_SBS(code,&freq); break;
         case SYS_CMP: (void)code2freq_BDS(code,&freq); break;
         case SYS_IRN: (void)code2freq_IRN(code,&freq); break;
+        case SYS_LEO: (void)code2freq_LEO(code,&freq); break;
     }
     return freq;
 }
@@ -800,6 +815,7 @@ extern void setcodepri(int sys, int idx, const char *pri)
     if (sys&SYS_SBS) strcpy(codepris[4][idx],pri);
     if (sys&SYS_CMP) strcpy(codepris[5][idx],pri);
     if (sys&SYS_IRN) strcpy(codepris[6][idx],pri);
+    if (sys&SYS_LEO) strcpy(codepris[7][idx],pri);
 }
 /* get code priority -----------------------------------------------------------
 * get code priority for multiple codes in a frequency
@@ -822,6 +838,7 @@ extern int getcodepri(int sys, uint8_t code, const char *opt)
         case SYS_SBS: i=4; optstr="-SL%2s"; break;
         case SYS_CMP: i=5; optstr="-CL%2s"; break;
         case SYS_IRN: i=6; optstr="-IL%2s"; break;
+        case SYS_LEO: i=7; optstr="-XL%2s"; break;
         default: return 0;
     }
     if ((j=code2idx(sys,code))<0) return 0;

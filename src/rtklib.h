@@ -98,6 +98,8 @@ extern "C" {
 #define FREQ1_CMP   1.561098E9          /* BDS B1I     frequency (Hz) */
 #define FREQ2_CMP   1.20714E9           /* BDS B2I/B2b frequency (Hz) */
 #define FREQ3_CMP   1.26852E9           /* BDS B3      frequency (Hz) */
+#define FREQX1      1.5933225E9		    /* XONA X-1 */
+#define FREQX5      1.19051625E9	    /* XONA X-5 */
 
 #define EFACT_GPS   1.0                 /* error factor: GPS */
 #define EFACT_GLO   1.5                 /* error factor: GLONASS */
@@ -909,7 +911,7 @@ typedef struct {        /* RTCM control struct type */
     ssr_t ssr[MAXSAT];  /* output of ssr corrections */
     char msg[128];      /* special message */
     char msgtype[256];  /* last message type */
-    char msmtype[7][128]; /* msm signal types */
+    char msmtype[8][128]; /* msm signal types */
     int obsflag;        /* obs data complete flag (1:ok,0:not complete) */
     int ephsat;         /* input ephemeris satellite number */
     int ephset;         /* input ephemeris set (0-1) */
@@ -1098,7 +1100,7 @@ typedef struct {        /* RINEX options type */
     gtime_t tstart;     /* first obs time */
     gtime_t tend;       /* last obs time */
     gtime_t trtcm;      /* approx log start time for rtcm */
-    char tobs[7][MAXOBSTYPE][4]; /* obs types {GPS,GLO,GAL,QZS,SBS,CMP,IRN} */
+    char tobs[8][MAXOBSTYPE][4]; /* obs types {GPS,GLO,GAL,QZS,SBS,CMP,IRN} */
     double shift[7][MAXOBSTYPE]; /* phase shift (cyc) {GPS,GLO,GAL,QZS,SBS,CMP,IRN} */
     int nobs[7];        /* number of obs types {GPS,GLO,GAL,QZS,SBS,CMP,IRN} */
     int option;         /* options for the setting in the command line, to override the origin settings */
